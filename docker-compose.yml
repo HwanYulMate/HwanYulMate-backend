@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # -------------------- 데이터베이스 서비스 --------------------
+  HwanYulMate-db:
+    image: mysql:8.0
+    container_name: HwanYulMate-db
+    restart: always # 컨테이너 비정상 종료 시 항상 재시작
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - HwanYulMate-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------- 백엔드 애플리케이션 서비스 --------------------
+  HwanYulMate-backend:
+    build: .
+    image: HwanYulMate-backend # 로컬 빌드 시 사용할 이미지 이름
+    container_name: HwanYulMate-backend
+    restart: always # 컨테이너 비정상 종료 시 항상 재시작
+    depends_on:
+      HwanYulMate-db:
+        condition: service_healthy # highlight-db가 healthy 상태가 될 때까지 대기
+    environment:
+      # Profile
+      SPRING_PROFILES_ACTIVE: docker
+      # Server
+      SERVER_PORT: ${SERVER_PORT}
+      # Database
+      DB_HOST: HwanYulMate-db # DB 호스트를 서비스 이름으로 고정
+      DB_PORT: 3306 # 컨테이너 내부 포트
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DDL_AUTO: ${DB_DDL_AUTO}
+      DB_SHOW_SQL: ${DB_SHOW_SQL}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRE_TIME: ${JWT_ACCESS_TOKEN_EXPIRE_TIME}
+      JWT_REFRESH_TOKEN_EXPIRE_TIME: ${JWT_REFRESH_TOKEN_EXPIRE_TIME}
+
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    networks:
+      - HwanYulMate-network
+
+# -------------------- 볼륨 및 네트워크 정의 --------------------
+volumes:
+  mysql_data:
+
+networks:
+  HwanYulMate-network:
+    driver: bridge

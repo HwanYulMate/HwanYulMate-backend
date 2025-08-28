@@ -1,0 +1,80 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.4'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.swyp'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// 애플리케이션 상태 모니터링 및 관리 기능 제공
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// JPA와 Hibernate를 통한 ORM 데이터 처리 지원
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+	// 인증 및 인가를 위한 Spring Security 기능 제공
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// Spring MVC 기반 웹 애플리케이션 및 REST API 개발 지원
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// WebSocket 기반 실시간 통신 기능 제공
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+	// MyBatis를 이용한 SQL 매핑 및 DB 연동 기능 제공
+	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5'
+
+	// 반복되는 코드 생략을 위한 Lombok (컴파일 시에만 필요)
+	compileOnly 'org.projectlombok:lombok'
+
+	// PostgreSQL 데이터베이스 드라이버
+	runtimeOnly 'org.postgresql:postgresql'
+
+	// MySQL 데이터베이스 드라이버
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	// Lombok 어노테이션 처리기 (컴파일 타임에 필요)
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// 단위 테스트 및 통합 테스트 지원 라이브러리
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	// MyBatis 관련 테스트 지원
+	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.5'
+
+	// Spring Security 관련 테스트 지원
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	// JUnit 테스트 런처
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // OpenAPI (Swagger UI)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+
+	//OkHttp
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
+
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
