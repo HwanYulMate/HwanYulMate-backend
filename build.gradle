@@ -45,9 +45,6 @@ dependencies {
 	// 반복되는 코드 생략을 위한 Lombok (컴파일 시에만 필요)
 	compileOnly 'org.projectlombok:lombok'
 
-	// PostgreSQL 데이터베이스 드라이버
-	runtimeOnly 'org.postgresql:postgresql'
-
 	// MySQL 데이터베이스 드라이버
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
