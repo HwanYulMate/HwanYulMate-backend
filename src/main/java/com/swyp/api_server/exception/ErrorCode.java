@@ -49,7 +49,13 @@ public enum ErrorCode {
     // 알림 관련 에러 (ALERT_xxx)
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "ALERT_001", "알림 설정을 찾을 수 없습니다."),
     ALERT_CREATION_FAILED(HttpStatus.BAD_REQUEST, "ALERT_002", "알림 설정 생성에 실패했습니다."),
-    INVALID_ALERT_CONDITION(HttpStatus.BAD_REQUEST, "ALERT_003", "유효하지 않은 알림 조건입니다.");
+    INVALID_ALERT_CONDITION(HttpStatus.BAD_REQUEST, "ALERT_003", "유효하지 않은 알림 조건입니다."),
+    
+    // Redis 캐시 관련 에러 (CACHE_xxx)
+    CACHE_CONNECTION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "CACHE_001", "캐시 서버 연결에 실패했습니다."),
+    CACHE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CACHE_002", "캐시 작업 중 오류가 발생했습니다."),
+    CACHE_SERIALIZATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CACHE_003", "캐시 데이터 직렬화에 실패했습니다."),
+    CACHE_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "CACHE_004", "캐시 요청 시간이 초과되었습니다.");
 
     private final HttpStatus httpStatus;        // HTTP 응답 상태 코드
     private final String code;                  // 비즈니스 에러 코드
