@@ -1,11 +1,18 @@
 package com.swyp.api_server.domain.rate.dto.response;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(name = "ExchangeResponse", description = "단일 통화 환율 응답")
 public class ExchangeResponseDTO {
 
@@ -15,8 +22,8 @@ public class ExchangeResponseDTO {
     @Schema(description = "통화 이름", example = "미국 달러")
     private String currencyName;
 
-    @Schema(description = "환율 값", example = "1380.25")
-    private double rate;
+    @Schema(description = "환율 값 (1 외화 = ? 원)", example = "1380.25")
+    private BigDecimal exchangeRate;
 
     @Schema(description = "기준 날짜", example = "2025-08-11")
     private String baseDate;

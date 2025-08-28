@@ -251,6 +251,7 @@ $RECYCLE.BIN/
 # Git에 올리지 않을 파일
 application.yml
 .env
+settings.local.json
 
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,database,java,intellij

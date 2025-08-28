@@ -2,8 +2,10 @@ package com.swyp.api_server.domain.rate.service;
 
 import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.dto.NewsDTO;
+import com.swyp.api_server.domain.rate.dto.response.ExchangeNewsListResponseDTO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import okhttp3.OkHttpClient;
@@ -77,10 +79,80 @@ public class NewsServiceImpl implements NewsService {
 
 
     @Override
+    @Cacheable(value = "exchangeNews", cacheManager = "cacheManager")
+    public List<ExchangeNewsListResponseDTO> getExchangeNews() {
+        try {
+            // "환율" 키워드로 전체 환율 뉴스 조회
+            List<NewsDTO> newsList = getNews("환율");
+            
+            return newsList.stream()
+                    .map(this::convertToExchangeNewsResponseDTO)
+                    .toList();
+                    
+        } catch (Exception e) {
+            log.error("환율 뉴스 조회 중 오류 발생", e);
+            return Collections.emptyList();
+        }
+    }
+    
+    @Override
+    @Cacheable(value = "currencyNews", key = "#currencyCode", cacheManager = "cacheManager")
+    public List<ExchangeNewsListResponseDTO> getCurrencyNews(String currencyCode) {
+        try {
+            // 통화 코드 유효성 검증
+            String currencyName = getCurrencyName(currencyCode);
+            
+            // 통화명 + "환율" 키워드로 검색
+            String searchKeyword = currencyName + " 환율";
+            List<NewsDTO> newsList = getNews(searchKeyword);
+            
+            return newsList.stream()
+                    .map(this::convertToExchangeNewsResponseDTO)
+                    .toList();
+                    
+        } catch (Exception e) {
+            log.error("통화별 뉴스 조회 중 오류 발생: {}", currencyCode, e);
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * NewsDTO를 ExchangeNewsListResponseDTO로 변환
+     */
+    private ExchangeNewsListResponseDTO convertToExchangeNewsResponseDTO(NewsDTO newsDTO) {
+        return ExchangeNewsListResponseDTO.builder()
+                .title(cleanHtmlTags(newsDTO.getTitle()))
+                .description(cleanHtmlTags(newsDTO.getDescription()))
+                .link(newsDTO.getLink())
+                .originalLink(newsDTO.getOriginalLink())
+                .pubDate(newsDTO.getPubDate())
+                .build();
+    }
+    
+    /**
+     * HTML 태그 제거
+     */
+    private String cleanHtmlTags(String text) {
+        if (text == null) return null;
+        return text.replaceAll("<[^>]*>", "").trim();
+    }
+    
+    /**
+     * 통화 코드에 해당하는 한글 이름 조회
+     */
+    private String getCurrencyName(String currencyCode) {
+        try {
+            return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getLabel();
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("지원하지 않는 통화 코드입니다: " + currencyCode);
+        }
+    }
+
+    @Override
     public void scheduleNews(){
         List<String> exchangeList = ExchangeList.ExchangeType.all();
         log.info("테스트 실행");
-        log.info(exchangeList);
+        log.info(exchangeList.toString());
         for(String exchangeType : exchangeList){
             List<NewsDTO> newsDTOList = getNews(String.valueOf(exchangeType));
             for(NewsDTO newsDTO : newsDTOList){

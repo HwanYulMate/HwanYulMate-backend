@@ -1,20 +1,26 @@
 package com.swyp.api_server.domain.rate.dto.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 @Schema(name = "ExchangeChartResponse", description = "환율 차트 데이터 응답")
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ExchangeChartResponseDTO {
-    @Schema(description = "통화 이름 명", example = "USD")
-    private String exchangeName;
+    
+    @Schema(description = "날짜 (YYYY-MM-DD)", example = "2024-01-15")
+    private String date;
 
-    @Schema(description = "기준 일시(로컬 시간)", example = "2025-08-12T09:00:00")
-    private LocalDateTime exchangeDate;
-
-    @Schema(description = "해당 시점 환율", example = "1385.23")
-    private double exchangeRate;
+    @Schema(description = "해당 날짜 환율", example = "1385.23")
+    private BigDecimal rate;
+    
+    @Schema(description = "타임스탬프")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime timestamp;
 }

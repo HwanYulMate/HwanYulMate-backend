@@ -16,26 +16,22 @@ public enum ExchangeList {
      * 필요에 따라 값을 추가하세요 (예: 환율 코드 또는 거래소 식별자)
      */
     public enum ExchangeType {
-        USD("USD", "미국달러"),
-        JPY("JPY", "엔화"),
-        EUR("EUR", "유로화"),
-        CNY("CNY", "위안화"),
-        HKD("HKD", "홍콩달러"),
-        TWD("TWD", "대만달러"),
-        THB("THB", "태국바트"),
-        SGD("SGD", "싱가폴달러"),
-        PHP("PHP", "필리핀페소"),
-        IDR("IDR", "인도네시아루피아"),
-        MYR("MYR", "말레이시아링킷"),
-        GBP("GBP", "영국파운드");
-//        달러(캐나다)
-//        CAD
-//        달러(호주)
-//        AUD
-//        달러(뉴질랜드)
-//        NZD
-//        프랑(스위스)
-//        CHF
+        USD("USD", "미국 달러"),
+        JPY("JPY", "일본 엔"),
+        EUR("EUR", "유럽 유로"),
+        CNY("CNY", "중국 위안"),
+        HKD("HKD", "홍콩 달러"),
+        TWD("TWD", "대만 달러"),
+        THB("THB", "태국 바트"),
+        SGD("SGD", "싱가폴 달러"),
+        PHP("PHP", "필리핀 페소"),
+        IDR("IDR", "인도네시아 루피아"),
+        MYR("MYR", "말레이시아 링깃"),
+        GBP("GBP", "영국 파운드"),
+        CAD("CAD", "캐나다 달러"),
+        AUD("AUD", "호주 달러"),
+        NZD("NZD", "뉴질랜드 달러"),
+        CHF("CHF", "스위스 프랑");
 
 
         private final String code;

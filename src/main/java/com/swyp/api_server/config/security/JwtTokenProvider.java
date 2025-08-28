@@ -153,7 +153,7 @@ public class JwtTokenProvider {
      * @throws JwtException 토큰이 유효하지 않은 경우
      */
     private Claims parseClaims(String token) {
-        return Jwts.parserBuilder()
+        return Jwts.parser()
                 .setSigningKey(key)               // 서명 검증용 키 설정
                 .build()
                 .parseClaimsJws(token)            // 토큰 파싱 및 서명 검증
