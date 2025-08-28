@@ -1,11 +1,15 @@
 package com.swyp.api_server.domain.user.service;
 
-
+import com.swyp.api_server.config.security.JwtTokenProvider;
+import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
+import com.swyp.api_server.domain.user.dto.TokenResponseDto;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.entity.User;
+import com.swyp.api_server.exception.CustomException;
+import com.swyp.api_server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,12 +18,13 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     public boolean signUp(SignRequestDto signRequestDto) {
         if(userRepository.existsByEmail(signRequestDto.getEmail())) {
-            return false;
+            throw new CustomException(ErrorCode.USER_ALREADY_EXISTS, "이메일: " + signRequestDto.getEmail());
         }
 
         User user = User.builder()
@@ -30,8 +35,26 @@ public class UserServiceImpl implements UserService {
                 .userName(signRequestDto.getUserName())
                 .createdAt(LocalDateTime.now())
                 .build();
-        userRepository.save(user);
-        return true;
+        try {
+            userRepository.save(user);
+            return true;
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.USER_REGISTRATION_FAILED, e.getMessage(), e);
+        }
+    }
 
+    @Override
+    public TokenResponseDto login(LoginRequestDto loginRequestDto) {
+        User user = userRepository.findByEmail(loginRequestDto.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + loginRequestDto.getEmail()));
+
+        if (!passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+
+        return new TokenResponseDto(accessToken, refreshToken);
     }
 }
