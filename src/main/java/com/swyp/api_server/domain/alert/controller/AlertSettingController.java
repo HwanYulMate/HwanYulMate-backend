@@ -2,10 +2,10 @@ package com.swyp.api_server.domain.alert.controller;
 
 import com.swyp.api_server.domain.alert.dto.AlertSettingRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
+import com.swyp.api_server.domain.alert.service.AlertSettingService;
+import com.swyp.api_server.config.security.JwtTokenProvider;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -17,52 +17,71 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.Parameter;
+import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/v1/api")
+@RequiredArgsConstructor
 @Tag(name = "Alert Settings", description = "알림 설정 API")
 public class AlertSettingController {
+    
+    private final AlertSettingService alertSettingService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Operation(
-            summary = "알림 설정 조회/미리보기",
-            description = "클라이언트에서 구성한 알림 설정 목록을 전달받아 유효성 검사 후 상태 코드를 반환합니다."
+            summary = "통화별 알림 설정 저장",
+            description = "사용자의 통화별 알림 활성화/비활성화 설정을 저장합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "성공 – 콘텐츠 없음"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(schema = @Schema(implementation = Void.class))),
-            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(implementation = Void.class)))
+            @ApiResponse(responseCode = "200", description = "알림 설정 저장 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "인증 필요")
     })
-    @RequestBody(
-            description = "알림 설정 요청 DTO 리스트",
-            required = true,
-            content = @Content(
-                    array = @ArraySchema(schema = @Schema(implementation = AlertSettingRequestDTO.class))
-            )
-    )
     @PostMapping("/alert/setting")
-    public ResponseEntity<Void> alertSetting(List<AlertSettingRequestDTO> alertSettingRequestDTO) {
-        return ResponseEntity.status(204).build();
+    public ResponseEntity<String> saveAlertSettings(
+            @org.springframework.web.bind.annotation.RequestBody List<AlertSettingRequestDTO> alertSettingRequestDTO,
+            HttpServletRequest request) {
+        
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        String userEmail = jwtTokenProvider.getEmailFromToken(accessToken);
+        
+        alertSettingService.saveAlertSettings(userEmail, alertSettingRequestDTO);
+        return ResponseEntity.ok("알림 설정이 저장되었습니다.");
     }
 
 
     @Operation(
-            summary = "알림 상세 설정 조회/미리보기",
-            description = "상세 알림 설정 목록을 전달받아 유효성 검사 후 상태 코드를 반환합니다."
+            summary = "알림 상세 설정 저장",
+            description = "특정 통화의 목표 환율 및 오늘의 환율 알림 상세 설정을 저장합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "성공 – 콘텐츠 없음"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(schema = @Schema(implementation = Void.class))),
-            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(implementation = Void.class)))
+            @ApiResponse(responseCode = "200", description = "알림 상세 설정 저장 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "인증 필요")
     })
-    @RequestBody(
-            description = "알림 상세 설정 요청 DTO 리스트",
-            required = true,
-            content = @Content(
-                    array = @ArraySchema(schema = @Schema(implementation = AlertSettingDetailRequestDTO.class))
-            )
-    )
-    @PostMapping("/alert/setting/detail")
-    public ResponseEntity<Void> alertSettingDetail(List<AlertSettingRequestDTO> alertSettingRequestDTO) {
-        return ResponseEntity.status(204).build();
+    @PostMapping("/alert/setting/{currencyCode}/detail")
+    public ResponseEntity<String> saveDetailAlertSettings(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            @org.springframework.web.bind.annotation.RequestBody AlertSettingDetailRequestDTO detailRequestDTO,
+            HttpServletRequest request) {
+        
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        String userEmail = jwtTokenProvider.getEmailFromToken(accessToken);
+        
+        alertSettingService.saveDetailAlertSettings(userEmail, currencyCode, detailRequestDTO);
+        return ResponseEntity.ok("알림 상세 설정이 저장되었습니다.");
     }
 }
