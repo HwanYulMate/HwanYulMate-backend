@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -32,7 +33,8 @@ public class AlertSettingController {
 
     @Operation(
             summary = "통화별 알림 설정 저장",
-            description = "사용자의 통화별 알림 활성화/비활성화 설정을 저장합니다."
+            description = "사용자의 통화별 알림 활성화/비활성화 설정을 저장합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "알림 설정 저장 성공"),
@@ -58,8 +60,9 @@ public class AlertSettingController {
 
 
     @Operation(
-            summary = "알림 상세 설정 저장",
-            description = "특정 통화의 목표 환율 및 오늘의 환율 알림 상세 설정을 저장합니다."
+            summary = "알림 상세 설정 저장", 
+            description = "특정 통화의 목표 환율 및 오늘의 환율 알림 상세 설정을 저장합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "알림 상세 설정 저장 성공"),
