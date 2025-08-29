@@ -13,10 +13,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 사용자 관리 컨트롤러
@@ -66,6 +65,35 @@ public class UserController {
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
         // CustomException으로 예외 처리됨 - GlobalExceptionHandler에서 일괄 처리
         TokenResponseDto tokenResponse = userService.login(loginRequestDto);
+        return ResponseEntity.ok(tokenResponse);
+    }
+
+    /**
+     * 토큰 갱신 API
+     * @param request HTTP 요청 (Authorization 헤더에서 Refresh Token 추출)
+     * @return 새로운 JWT 토큰 (accessToken, refreshToken)
+     */
+    @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token과 Refresh Token을 발급받습니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
+            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))),
+        @ApiResponse(responseCode = "401", description = "토큰 갱신 실패",
+            content = @Content(examples = {
+                @ExampleObject(name = "만료된 토큰", value = "Refresh Token이 만료되었습니다."),
+                @ExampleObject(name = "잘못된 토큰 타입", value = "유효하지 않은 토큰 타입입니다."),
+                @ExampleObject(name = "토큰 없음", value = "토큰이 없습니다.")
+            }))
+    })
+    @PostMapping("/auth/refresh")
+    public ResponseEntity<?> refreshToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String refreshToken = authHeader.substring(7);
+        TokenResponseDto tokenResponse = userService.refreshToken(refreshToken);
         return ResponseEntity.ok(tokenResponse);
     }
 }

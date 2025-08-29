@@ -57,4 +57,30 @@ public class UserServiceImpl implements UserService {
 
         return new TokenResponseDto(accessToken, refreshToken);
     }
+
+    @Override
+    public TokenResponseDto refreshToken(String refreshToken) {
+        // Refresh Token 유효성 검증
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new CustomException(ErrorCode.EXPIRED_TOKEN, "Refresh Token이 만료되었습니다.");
+        }
+
+        // Refresh Token 타입 확인
+        if (!jwtTokenProvider.isRefreshToken(refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN_TYPE, "유효하지 않은 토큰 타입입니다.");
+        }
+
+        // Refresh Token에서 사용자 이메일 추출
+        String email = jwtTokenProvider.getEmailFromToken(refreshToken);
+
+        // 사용자 존재 여부 확인
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+
+        // 새로운 Access Token과 Refresh Token 생성
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+
+        return new TokenResponseDto(newAccessToken, newRefreshToken);
+    }
 }
