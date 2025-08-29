@@ -49,6 +49,11 @@ public enum ErrorCode {
     // 뉴스 관련 에러 (NEWS_xxx)
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "NEWS_001", "뉴스 정보를 찾을 수 없습니다."),
     NEWS_API_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "NEWS_002", "뉴스 조회 서비스에 오류가 발생했습니다."),
+    NEWS_SEARCH_KEYWORD_EMPTY(HttpStatus.BAD_REQUEST, "NEWS_003", "검색 키워드를 입력해주세요."),
+    NEWS_INVALID_PAGE_PARAMETER(HttpStatus.BAD_REQUEST, "NEWS_004", "페이지 번호가 유효하지 않습니다."),
+    NEWS_INVALID_SIZE_PARAMETER(HttpStatus.BAD_REQUEST, "NEWS_005", "페이지 크기가 유효하지 않습니다."),
+    NEWS_API_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "NEWS_006", "뉴스 API 호출 한도를 초과했습니다."),
+    NEWS_API_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "NEWS_007", "뉴스 API 인증에 실패했습니다."),
 
     // 알림 관련 에러 (ALERT_xxx)
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "ALERT_001", "알림 설정을 찾을 수 없습니다."),

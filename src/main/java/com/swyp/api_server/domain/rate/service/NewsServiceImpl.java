@@ -4,6 +4,8 @@ import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.dto.NewsDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeNewsListResponseDTO;
 import com.swyp.api_server.domain.rate.dto.response.PaginatedNewsResponseDTO;
+import com.swyp.api_server.exception.CustomException;
+import com.swyp.api_server.exception.ErrorCode;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
@@ -61,20 +63,23 @@ public class NewsServiceImpl implements NewsService {
                 switch (statusCode) {
                     case 400:
                         log.error("네이버 API 요청 오류 (400): {}", errorMessage);
-                        break;
+                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
                     case 403:
                         log.error("네이버 API 권한 없음 (403): 검색 API 사용 설정 확인 필요");
-                        break;
+                        throw new CustomException(ErrorCode.NEWS_API_UNAUTHORIZED);
+                    case 429:
+                        log.error("네이버 API 호출 한도 초과 (429): {}", errorMessage);
+                        throw new CustomException(ErrorCode.NEWS_API_QUOTA_EXCEEDED);
                     case 404:
                         log.error("네이버 API 경로 오류 (404): {}", errorMessage);
-                        break;
+                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
                     case 500:
                         log.error("네이버 API 서버 오류 (500): {}", errorMessage);
-                        break;
+                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
                     default:
                         log.error("네이버 API 호출 실패: {} - {}", statusCode, errorMessage);
+                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
                 }
-                return Collections.emptyList();
             }
             String responseBody = response.body().string();
             ObjectMapper mapper = new ObjectMapper();
@@ -187,16 +192,18 @@ public class NewsServiceImpl implements NewsService {
 
     @Override
     public PaginatedNewsResponseDTO getExchangeNewsPaginated(int page, int size) {
+        // 입력 유효성 검증
+        if (page < 0) {
+            throw new CustomException(ErrorCode.NEWS_INVALID_PAGE_PARAMETER);
+        }
+        if (size < 1 || size > 100) {
+            throw new CustomException(ErrorCode.NEWS_INVALID_SIZE_PARAMETER);
+        }
+        
         try {
             int start = (page * size) + 1;
             if (start > 1000) {
-                return PaginatedNewsResponseDTO.builder()
-                        .newsList(Collections.emptyList())
-                        .currentPage(page)
-                        .pageSize(size)
-                        .totalCount(0)
-                        .hasNext(false)
-                        .build();
+                return createEmptyPaginatedResponse(page, size);
             }
             List<NewsDTO> newsList = getNewsWithPaging("환율", start, size);
             
@@ -214,31 +221,27 @@ public class NewsServiceImpl implements NewsService {
                     
         } catch (Exception e) {
             log.error("환율 뉴스 페이징 조회 중 오류 발생", e);
-            return PaginatedNewsResponseDTO.builder()
-                    .newsList(Collections.emptyList())
-                    .currentPage(page)
-                    .pageSize(size)
-                    .totalCount(0)
-                    .hasNext(false)
-                    .build();
+            return createEmptyPaginatedResponse(page, size);
         }
     }
     
     @Override
     public PaginatedNewsResponseDTO getCurrencyNewsPaginated(String currencyCode, int page, int size) {
+        // 입력 유효성 검증
+        if (page < 0) {
+            throw new CustomException(ErrorCode.NEWS_INVALID_PAGE_PARAMETER);
+        }
+        if (size < 1 || size > 100) {
+            throw new CustomException(ErrorCode.NEWS_INVALID_SIZE_PARAMETER);
+        }
+        
         try {
             String currencyName = getCurrencyName(currencyCode);
             String searchKeyword = currencyName + " 환율";
             
             int start = (page * size) + 1;
             if (start > 1000) {
-                return PaginatedNewsResponseDTO.builder()
-                        .newsList(Collections.emptyList())
-                        .currentPage(page)
-                        .pageSize(size)
-                        .totalCount(0)
-                        .hasNext(false)
-                        .build();
+                return createEmptyPaginatedResponse(page, size);
             }
             List<NewsDTO> newsList = getNewsWithPaging(searchKeyword, start, size);
             
@@ -256,30 +259,29 @@ public class NewsServiceImpl implements NewsService {
                     
         } catch (Exception e) {
             log.error("통화별 뉴스 페이징 조회 중 오류 발생: {}", currencyCode, e);
-            return PaginatedNewsResponseDTO.builder()
-                    .newsList(Collections.emptyList())
-                    .currentPage(page)
-                    .pageSize(size)
-                    .totalCount(0)
-                    .hasNext(false)
-                    .build();
+            return createEmptyPaginatedResponse(page, size);
         }
     }
     
     @Override
     public PaginatedNewsResponseDTO searchExchangeNews(String searchKeyword, int page, int size) {
+        // 입력 유효성 검증
+        if (searchKeyword == null || searchKeyword.trim().isEmpty()) {
+            throw new CustomException(ErrorCode.NEWS_SEARCH_KEYWORD_EMPTY);
+        }
+        if (page < 0) {
+            throw new CustomException(ErrorCode.NEWS_INVALID_PAGE_PARAMETER);
+        }
+        if (size < 1 || size > 100) {
+            throw new CustomException(ErrorCode.NEWS_INVALID_SIZE_PARAMETER);
+        }
+        
         try {
             String combinedKeyword = searchKeyword + " 환율";
             
             int start = (page * size) + 1;
             if (start > 1000) {
-                return PaginatedNewsResponseDTO.builder()
-                        .newsList(Collections.emptyList())
-                        .currentPage(page)
-                        .pageSize(size)
-                        .totalCount(0)
-                        .hasNext(false)
-                        .build();
+                return createEmptyPaginatedResponse(page, size);
             }
             List<NewsDTO> newsList = getNewsWithPaging(combinedKeyword, start, size);
             
@@ -297,13 +299,20 @@ public class NewsServiceImpl implements NewsService {
                     
         } catch (Exception e) {
             log.error("환율 뉴스 검색 중 오류 발생: {}", searchKeyword, e);
-            return PaginatedNewsResponseDTO.builder()
-                    .newsList(Collections.emptyList())
-                    .currentPage(page)
-                    .pageSize(size)
-                    .totalCount(0)
-                    .hasNext(false)
-                    .build();
+            return createEmptyPaginatedResponse(page, size);
         }
+    }
+    
+    /**
+     * 빈 페이징 응답 생성 (공통 메서드)
+     */
+    private PaginatedNewsResponseDTO createEmptyPaginatedResponse(int page, int size) {
+        return PaginatedNewsResponseDTO.builder()
+                .newsList(Collections.emptyList())
+                .currentPage(page)
+                .pageSize(size)
+                .totalCount(0)
+                .hasNext(false)
+                .build();
     }
 }
