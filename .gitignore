@@ -252,6 +252,6 @@ $RECYCLE.BIN/
 application.yml
 .env
 settings.local.json
-
+src/main/resources/firebase.json
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,database,java,intellij
