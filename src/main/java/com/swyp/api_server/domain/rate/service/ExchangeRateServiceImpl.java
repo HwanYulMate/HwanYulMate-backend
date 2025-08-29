@@ -27,16 +27,18 @@ import java.util.List;
 
 /**
  * 환율 데이터 조회 서비스 구현체
- * - ExchangeRate-API (무료) 사용하여 실시간 환율 정보 제공
- * - 캐싱 기능으로 API 호출 최적화
+ * - 한국 수출입은행 API 사용하여 공식 환율 정보 제공
+ * - 캐싱 기능으로 API 호출 최적화 (하루 1000회 제한)
  * - 16개국 통화 지원
  */
 @Slf4j
 @Service
 public class ExchangeRateServiceImpl implements ExchangeRateService {
     
-    private static final String BASE_URL = "https://api.exchangerate-api.com/v4";
-    private static final String BASE_CURRENCY = "KRW"; // 한국 원화 기준
+    private static final String BASE_URL = "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
+    
+    @Value("${custom.koreaexim-api-key:SAMPLE_API_KEY}")
+    private String apiKey;
     
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -48,49 +50,69 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     
     /**
      * 모든 통화의 실시간 환율 목록 조회
-     * - 1분간 캐시하여 API 호출 최적화
+     * - 한국 수출입은행 공식 환율 데이터 사용
+     * - 5분간 캐시하여 API 호출 최적화 (일 1000회 제한 고려)
      */
     @Override
     @Cacheable(value = "exchangeRates", cacheManager = "cacheManager")
     public List<ExchangeResponseDTO> getAllExchangeRates() {
         try {
-            String url = BASE_URL + "/latest/" + BASE_CURRENCY;
-            String response = makeApiCall(url);
+            // 수출입은행 API: 당일 환율 조회
+            String searchDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String url = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + searchDate + "&data=AP01";
             
-            JsonNode jsonNode = objectMapper.readTree(response);
-            JsonNode ratesNode = jsonNode.get("rates");
+            String response = makeApiCall(url);
+            JsonNode responseData = objectMapper.readTree(response);
+            
+            // 수출입은행 API 에러 응답 처리
+            handleKoreaEximApiResponse(responseData);
             
             List<ExchangeResponseDTO> exchangeRates = new ArrayList<>();
             
-            // 16개국 통화 순회하며 환율 정보 생성
+            // 16개국 통화 순회하며 환율 정보 매핑
             for (ExchangeList.ExchangeType currency : ExchangeList.ExchangeType.values()) {
                 String currencyCode = currency.getCode();
                 
-                if (ratesNode.has(currencyCode)) {
-                    BigDecimal rate = BigDecimal.valueOf(ratesNode.get(currencyCode).asDouble());
+                // 수출입은행 통화 코드 매핑 (JPY(100), IDR(100) 등)
+                String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
+                
+                // 수출입은행 응답에서 해당 통화 찾기  
+                JsonNode currencyData = findCurrencyInResponse(responseData, mappedCurrencyCode);
+                
+                if (currencyData != null) {
+                    // 매매기준율 사용 (deal_bas_r)
+                    String dealBasRStr = currencyData.get("deal_bas_r").asText().replace(",", "");
                     
-                    // KRW 기준이므로 역수 계산 (1 외화 = ? 원)
-                    BigDecimal krwRate = BigDecimal.ONE.divide(rate, 4, RoundingMode.HALF_UP);
-                    
-                    ExchangeResponseDTO dto = ExchangeResponseDTO.builder()
-                            .currencyCode(currencyCode)
-                            .currencyName(currency.getLabel())
-                            .exchangeRate(krwRate)
-                            .baseDate(LocalDate.now().toString())
-                            .build();
-                    
-                    exchangeRates.add(dto);
+                    if (!dealBasRStr.isEmpty() && !dealBasRStr.equals("0")) {
+                        BigDecimal exchangeRate = new BigDecimal(dealBasRStr);
+                        
+                        // JPY(100), IDR(100) 등은 100 단위이므로 1 단위로 환산
+                        if (mappedCurrencyCode.contains("(100)")) {
+                            exchangeRate = exchangeRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                        }
+                        
+                        ExchangeResponseDTO dto = ExchangeResponseDTO.builder()
+                                .currencyCode(currencyCode)
+                                .currencyName(currency.getLabel())
+                                .exchangeRate(exchangeRate)
+                                .baseDate(searchDate)
+                                .build();
+                        
+                        exchangeRates.add(dto);
+                    } else {
+                        log.warn("수출입은행 환율 데이터가 없습니다: {}", currencyCode);
+                    }
                 } else {
-                    log.warn("환율 정보를 찾을 수 없습니다: {}", currencyCode);
+                    log.warn("수출입은행에서 환율 정보를 찾을 수 없습니다: {}", currencyCode);
                 }
             }
             
-            log.info("환율 정보 조회 완료: {}개 통화", exchangeRates.size());
+            log.info("수출입은행 환율 정보 조회 완료: {}개 통화", exchangeRates.size());
             return exchangeRates;
             
         } catch (Exception e) {
-            log.error("전체 환율 조회 중 오류 발생", e);
-            throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, "전체 환율 조회 실패", e);
+            log.error("수출입은행 환율 조회 중 오류 발생", e);
+            throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, "환율 조회 실패", e);
         }
     }
     
@@ -104,42 +126,65 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             // 통화 코드 유효성 검증
             validateCurrencyCode(currencyCode);
             
-            // 현재 환율 조회
-            String currentUrl = BASE_URL + "/latest/" + BASE_CURRENCY;
+            String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
+            
+            // 현재 환율 조회 (수출입은행 API)
+            String searchDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String currentUrl = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + searchDate + "&data=AP01";
             String currentResponse = makeApiCall(currentUrl);
             JsonNode currentData = objectMapper.readTree(currentResponse);
             
-            // 하루 전 환율 조회 (등락률 계산용)
-            String yesterday = LocalDate.now().minusDays(1).toString();
-            String historicalUrl = BASE_URL + "/history/" + BASE_CURRENCY + "/" + yesterday;
+            handleKoreaEximApiResponse(currentData);
+            
+            // 전일 환율 조회 (등락률 계산용)
+            String previousDate = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String historicalUrl = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + previousDate + "&data=AP01";
             String historicalResponse = makeApiCall(historicalUrl);
             JsonNode historicalData = objectMapper.readTree(historicalResponse);
             
-            // 현재 환율
-            BigDecimal currentRate = BigDecimal.valueOf(
-                currentData.get("rates").get(currencyCode).asDouble());
-            BigDecimal currentKrwRate = BigDecimal.ONE.divide(currentRate, 4, RoundingMode.HALF_UP);
+            handleKoreaEximApiResponse(historicalData);
             
-            // 전일 환율 (등락률 계산용)
-            BigDecimal previousRate = BigDecimal.valueOf(
-                historicalData.get("rates").get(currencyCode).asDouble());
-            BigDecimal previousKrwRate = BigDecimal.ONE.divide(previousRate, 4, RoundingMode.HALF_UP);
+            // 현재 환율 데이터 찾기
+            JsonNode currentCurrencyData = findCurrencyInResponse(currentData, mappedCurrencyCode);
+            if (currentCurrencyData == null) {
+                throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "현재 환율 데이터를 찾을 수 없습니다: " + currencyCode);
+            }
+            
+            // 전일 환율 데이터 찾기
+            JsonNode previousCurrencyData = findCurrencyInResponse(historicalData, mappedCurrencyCode);
+            if (previousCurrencyData == null) {
+                throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "전일 환율 데이터를 찾을 수 없습니다: " + currencyCode);
+            }
+            
+            // 현재 환율 파싱
+            String currentDealBasRStr = currentCurrencyData.get("deal_bas_r").asText().replace(",", "");
+            BigDecimal currentRate = new BigDecimal(currentDealBasRStr);
+            if (mappedCurrencyCode.contains("(100)")) {
+                currentRate = currentRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            }
+            
+            // 전일 환율 파싱
+            String previousDealBasRStr = previousCurrencyData.get("deal_bas_r").asText().replace(",", "");
+            BigDecimal previousRate = new BigDecimal(previousDealBasRStr);
+            if (mappedCurrencyCode.contains("(100)")) {
+                previousRate = previousRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            }
             
             // 등락률 계산 (현재환율 - 전일환율) / 전일환율 * 100
-            BigDecimal changeRate = currentKrwRate.subtract(previousKrwRate)
-                    .divide(previousKrwRate, 6, RoundingMode.HALF_UP)
+            BigDecimal changeRate = currentRate.subtract(previousRate)
+                    .divide(previousRate, 6, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
             
             // 등락폭 계산
-            BigDecimal changeAmount = currentKrwRate.subtract(previousKrwRate);
+            BigDecimal changeAmount = currentRate.subtract(previousRate);
             
             String currencyName = getCurrencyName(currencyCode);
             
             return ExchangeRealtimeResponseDTO.builder()
                     .currencyCode(currencyCode)
                     .currencyName(currencyName)
-                    .currentRate(currentKrwRate)
-                    .previousRate(previousKrwRate)
+                    .currentRate(currentRate)
+                    .previousRate(previousRate)
                     .changeAmount(changeAmount)
                     .changeRate(changeRate)
                     .updateTime(LocalDateTime.now())
@@ -171,38 +216,48 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         try {
             validateCurrencyCode(currencyCode);
             
+            String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
             List<ExchangeChartResponseDTO> chartData = new ArrayList<>();
             LocalDate endDate = LocalDate.now();
             
             // 최근 N일간의 환율 데이터 수집
             for (int i = days - 1; i >= 0; i--) {
                 LocalDate targetDate = endDate.minusDays(i);
-                String dateStr = targetDate.toString();
+                String searchDate = targetDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 
                 try {
-                    String url = BASE_URL + "/history/" + BASE_CURRENCY + "/" + dateStr;
+                    String url = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + searchDate + "&data=AP01";
                     String response = makeApiCall(url);
                     JsonNode jsonData = objectMapper.readTree(response);
                     
-                    if (jsonData.has("rates") && jsonData.get("rates").has(currencyCode)) {
-                        BigDecimal rate = BigDecimal.valueOf(
-                            jsonData.get("rates").get(currencyCode).asDouble());
-                        BigDecimal krwRate = BigDecimal.ONE.divide(rate, 4, RoundingMode.HALF_UP);
+                    handleKoreaEximApiResponse(jsonData);
+                    
+                    JsonNode currencyData = findCurrencyInResponse(jsonData, mappedCurrencyCode);
+                    if (currencyData != null) {
+                        String dealBasRStr = currencyData.get("deal_bas_r").asText().replace(",", "");
                         
-                        ExchangeChartResponseDTO dto = ExchangeChartResponseDTO.builder()
-                                .date(dateStr)
-                                .rate(krwRate)
-                                .timestamp(targetDate.atStartOfDay())
-                                .build();
-                        
-                        chartData.add(dto);
+                        if (!dealBasRStr.isEmpty() && !dealBasRStr.equals("0")) {
+                            BigDecimal exchangeRate = new BigDecimal(dealBasRStr);
+                            
+                            if (mappedCurrencyCode.contains("(100)")) {
+                                exchangeRate = exchangeRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                            }
+                            
+                            ExchangeChartResponseDTO dto = ExchangeChartResponseDTO.builder()
+                                    .date(searchDate)
+                                    .rate(exchangeRate)
+                                    .timestamp(targetDate.atStartOfDay())
+                                    .build();
+                            
+                            chartData.add(dto);
+                        }
                     }
                     
                     // API 호출 간격 조절 (Rate Limiting 방지)
                     Thread.sleep(100);
                     
                 } catch (Exception e) {
-                    log.warn("{}일자 환율 데이터 조회 실패: {}", dateStr, e.getMessage());
+                    log.warn("{}일자 환율 데이터 조회 실패: {}", searchDate, e.getMessage());
                     // 개별 날짜 실패는 전체 실패로 이어지지 않도록 계속 진행
                 }
             }
@@ -263,6 +318,67 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getLabel();
         } catch (IllegalArgumentException e) {
             return currencyCode; // 찾을 수 없으면 코드 그대로 반환
+        }
+    }
+    
+    /**
+     * 수출입은행 API 응답에서 특정 통화 데이터 찾기
+     */
+    private JsonNode findCurrencyInResponse(JsonNode responseArray, String targetCurrencyCode) {
+        if (!responseArray.isArray()) {
+            return null;
+        }
+        
+        for (JsonNode item : responseArray) {
+            String curUnit = item.get("cur_unit").asText();
+            
+            // 수출입은행에서는 통화 단위가 다를 수 있음 (예: USD, JPY(100) 등)
+            String cleanCurUnit = curUnit.replaceAll("\\(.*\\)", "").trim();
+            
+            if (cleanCurUnit.equalsIgnoreCase(targetCurrencyCode)) {
+                return item;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 수출입은행 통화 코드 매핑
+     * (수출입은행 응답 예시에 따른 실제 매핑)
+     */
+    private String mapToKoreaEximCurrencyCode(String standardCode) {
+        return switch (standardCode.toUpperCase()) {
+            case "JPY" -> "JPY(100)";   // 일본 엔 (100엔 단위)
+            case "IDR" -> "IDR(100)";   // 인도네시아 루피아 (100 단위)
+            case "CNY" -> "CNH";        // 중국 위안 (수출입은행에서는 CNH 사용)
+            default -> standardCode;
+        };
+    }
+    
+    /**
+     * 수출입은행 API 응답 에러 처리
+     */
+    private void handleKoreaEximApiResponse(JsonNode responseData) {
+        // 정상 응답이지만 배열이 비어있는 경우
+        if (responseData.isArray() && responseData.size() == 0) {
+            throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "환율 데이터가 없습니다.");
+        }
+        
+        // 배열 응답에서 개별 아이템의 result 체크
+        if (responseData.isArray() && responseData.size() > 0) {
+            JsonNode firstItem = responseData.get(0);
+            if (firstItem.has("result")) {
+                int result = firstItem.get("result").asInt();
+                
+                switch (result) {
+                    case 1 -> log.debug("수출입은행 API 정상 응답");  // 성공
+                    case 2 -> throw new CustomException(ErrorCode.INVALID_REQUEST, "DATA 코드 오류 (AP01 확인)");
+                    case 3 -> throw new CustomException(ErrorCode.INVALID_REQUEST, "인증키 오류. 발급받은 인증키를 확인해주세요.");
+                    case 4 -> throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, "일일 호출 한도(1000회)를 초과했습니다.");
+                    default -> log.warn("알 수 없는 수출입은행 API 응답: {}", result);
+                }
+            }
         }
     }
 }

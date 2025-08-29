@@ -43,8 +43,10 @@ services:
 
   # -------------------- 백엔드 애플리케이션 서비스 --------------------
   HwanYulMate-backend:
-    build: .
-    image: HwanYulMate-backend # 로컬 빌드 시 사용할 이미지 이름
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hwanyulmate-backend:latest
     container_name: HwanYulMate-backend
     restart: always # 컨테이너 비정상 종료 시 항상 재시작
     depends_on:
@@ -75,6 +77,8 @@ services:
       # Naver API
       NAVER_CLIENT_ID: ${NAVER_CLIENT_ID}
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
+      # Korea Eximbank API
+      KOREAEXIM_API_KEY: ${KOREAEXIM_API_KEY}
 
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"

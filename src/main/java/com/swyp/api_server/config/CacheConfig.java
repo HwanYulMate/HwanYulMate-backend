@@ -43,11 +43,11 @@ public class CacheConfig {
         // 캐시별 개별 TTL 설정
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
-        // 전체 환율 목록: 1분 캐시
-        cacheConfigurations.put("exchangeRates", defaultCacheConfig.entryTtl(Duration.ofMinutes(1)));
+        // 전체 환율 목록: 5분 캐시 (수출입은행 API 제한 고려 - 1000회/일)
+        cacheConfigurations.put("exchangeRates", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
         
-        // 실시간 환율: 1분 캐시 
-        cacheConfigurations.put("realtimeRate", defaultCacheConfig.entryTtl(Duration.ofMinutes(1)));
+        // 실시간 환율: 5분 캐시 (수출입은행 API 제한 고려)
+        cacheConfigurations.put("realtimeRate", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
         
         // 과거 환율 데이터: 10분 캐시 (변동이 적으므로 오래 캐싱)
         cacheConfigurations.put("historicalRate", defaultCacheConfig.entryTtl(Duration.ofMinutes(10)));
@@ -55,6 +55,12 @@ public class CacheConfig {
         // 뉴스 데이터: 30분 캐시 (뉴스는 실시간성이 상대적으로 덜 중요)
         cacheConfigurations.put("exchangeNews", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigurations.put("currencyNews", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
+        
+        // 환전 계산 데이터: 2분 캐시 (실시간 환율 반영하되 계산 부하 줄임)
+        cacheConfigurations.put("exchangeCalculation", defaultCacheConfig.entryTtl(Duration.ofMinutes(2)));
+        
+        // 은행 정보 데이터: 30분 캐시 (자주 변경되지 않는 설정 정보)
+        cacheConfigurations.put("bankExchangeInfo", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
         
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultCacheConfig)

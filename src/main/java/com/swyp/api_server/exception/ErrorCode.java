@@ -41,6 +41,10 @@ public enum ErrorCode {
     EXCHANGE_RATE_NOT_FOUND(HttpStatus.NOT_FOUND, "RATE_001", "환율 정보를 찾을 수 없습니다."),
     EXCHANGE_RATE_API_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "RATE_002", "환율 정보 조회 서비스에 오류가 발생했습니다."),
     INVALID_CURRENCY_CODE(HttpStatus.BAD_REQUEST, "RATE_003", "유효하지 않은 통화 코드입니다."),
+    INVALID_EXCHANGE_AMOUNT(HttpStatus.BAD_REQUEST, "RATE_004", "환전 금액이 유효하지 않습니다."),
+    EXCHANGE_AMOUNT_BELOW_MINIMUM(HttpStatus.BAD_REQUEST, "RATE_005", "최소 환전 금액 미달입니다."),
+    EXCHANGE_AMOUNT_ABOVE_MAXIMUM(HttpStatus.BAD_REQUEST, "RATE_006", "최대 환전 금액 초과입니다."),
+    UNSUPPORTED_BANK(HttpStatus.BAD_REQUEST, "RATE_007", "지원하지 않는 은행입니다."),
 
     // 뉴스 관련 에러 (NEWS_xxx)
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "NEWS_001", "뉴스 정보를 찾을 수 없습니다."),
