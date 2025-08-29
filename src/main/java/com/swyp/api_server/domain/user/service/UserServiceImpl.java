@@ -121,4 +121,15 @@ public class UserServiceImpl implements UserService {
         // 탈퇴 처리 로그
         // log.info("회원 탈퇴 처리: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
     }
+
+    @Override
+    public void updateFCMToken(String email, String fcmToken) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+        
+        user.setFcmToken(fcmToken);
+        userRepository.save(user);
+        
+        // log.info("FCM 토큰 업데이트: {}", email);
+    }
 }

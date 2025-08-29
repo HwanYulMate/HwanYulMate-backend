@@ -41,6 +41,13 @@ public class User {
     @Column(name = "final_deletion_date")
     private LocalDateTime finalDeletionDate;  // 실제 삭제 예정 날짜 (탈퇴 + 30일)
     
+    @Column(name = "fcm_token")
+    private String fcmToken;  // FCM 푸시 알림용 디바이스 토큰
+    
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+    
     /**
      * 회원 탈퇴 처리 (즉시 삭제 아닌 30일 보관)
      */

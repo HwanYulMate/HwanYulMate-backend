@@ -16,7 +16,7 @@ public class AlertSettingDetailRequestDTO {
     @Schema(description = "목표 환율", example = "1350.7")
     private double targetPrice;
 
-    @Schema(description = "알림 수단", example = "KAKAO", allowableValues = {"PUSH", "KAKAO"})
+    @Schema(description = "알림 수단 (iOS는 PUSH만 지원)", example = "PUSH", allowableValues = {"PUSH"})
     private String targetPricePushHow;
 
     @Schema(description = "오늘의 환율 알림 발송 시각 (HH:mm, 24h)", example = "09:00", format = "time")

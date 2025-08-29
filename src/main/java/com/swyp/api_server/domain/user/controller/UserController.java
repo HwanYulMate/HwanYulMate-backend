@@ -161,4 +161,32 @@ public class UserController {
         
         return ResponseEntity.ok("회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
     }
+
+    /**
+     * FCM 토큰 등록 API
+     * @param fcmTokenRequest FCM 토큰 정보
+     * @param request HTTP 요청
+     * @return 등록 결과
+     */
+    @Operation(summary = "FCM 토큰 등록", description = "iOS 앱의 FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 설정합니다.",
+               security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "FCM 토큰 등록 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    @PostMapping("/fcm/token")
+    public ResponseEntity<?> registerFCMToken(@RequestBody java.util.Map<String, String> fcmTokenRequest, HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        String fcmToken = fcmTokenRequest.get("fcmToken");
+        
+        userService.updateFCMToken(email, fcmToken);
+        return ResponseEntity.ok("FCM 토큰이 등록되었습니다.");
+    }
 }

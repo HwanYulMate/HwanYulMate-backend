@@ -10,4 +10,5 @@ public interface UserService {
     TokenResponseDto refreshToken(String refreshToken);
     void logout(String accessToken);
     void withdraw(String email);
+    void updateFCMToken(String email, String fcmToken);
 }

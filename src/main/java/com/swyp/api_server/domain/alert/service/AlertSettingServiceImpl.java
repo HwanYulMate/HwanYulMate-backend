@@ -5,6 +5,7 @@ import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
 import com.swyp.api_server.domain.alert.repository.AlertSettingRepository;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
 import com.swyp.api_server.domain.user.repository.UserRepository;
+import com.swyp.api_server.domain.notification.service.FCMService;
 import com.swyp.api_server.entity.AlertSetting;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
@@ -31,6 +32,7 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     private final AlertSettingRepository alertSettingRepository;
     private final UserRepository userRepository;
     private final ExchangeRateService exchangeRateService;
+    private final FCMService fcmService;
     
     @Override
     public void saveAlertSettings(String userEmail, List<AlertSettingRequestDTO> alertSettings) {
@@ -157,11 +159,17 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         // 실제 푸시 알림 발송 로직 (FCM, APNs 등)
         log.info("목표 환율 달성 알림: {}", message);
         
-        // TODO: 푸시 알림 서비스 연동
-        if ("PUSH".equals(alert.getTargetPricePushHow())) {
-            // 푸시 알림 발송
-        } else if ("KAKAO".equals(alert.getTargetPricePushHow())) {
-            // 카카오톡 알림 발송
+        // FCM 푸시 알림 발송 (iOS 전용)
+        if (alert.getUser().getFcmToken() != null) {
+            fcmService.sendTargetRateAlert(
+                alert.getUser().getFcmToken(),
+                alert.getCurrencyCode(),
+                alert.getTargetPrice().doubleValue(),
+                currentPrice.doubleValue()
+            );
+            log.info("FCM 목표 환율 알림 전송: 사용자={}", alert.getUser().getEmail());
+        } else {
+            log.warn("FCM 토큰이 없어 알림을 전송할 수 없습니다: 사용자={}", alert.getUser().getEmail());
         }
     }
     
@@ -175,9 +183,17 @@ public class AlertSettingServiceImpl implements AlertSettingService {
                 currentRate.getCurrentRate(),
                 currentRate.getChangeRate());
         
-        // 실제 푸시 알림 발송 로직
+        // FCM 푸시 알림 발송
         log.info("오늘의 환율 알림: {}", message);
         
-        // TODO: 푸시 알림 서비스 연동
+        if (alert.getUser().getFcmToken() != null) {
+            fcmService.sendDailyRateAlert(
+                alert.getUser().getFcmToken(),
+                alert.getCurrencyCode(),
+                currentRate.getCurrentRate().doubleValue(),
+                currentRate.getPreviousRate().doubleValue()
+            );
+            log.info("FCM 일일 환율 알림 전송: 사용자={}", alert.getUser().getEmail());
+        }
     }
 }
