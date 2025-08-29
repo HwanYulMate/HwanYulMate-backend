@@ -83,4 +83,42 @@ public class UserServiceImpl implements UserService {
 
         return new TokenResponseDto(newAccessToken, newRefreshToken);
     }
+
+    @Override
+    public void logout(String accessToken) {
+        // Access Token 유효성 검증
+        if (!jwtTokenProvider.validateToken(accessToken)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN, "유효하지 않은 Access Token입니다.");
+        }
+
+        // Access Token 타입 확인
+        if (!jwtTokenProvider.isAccessToken(accessToken)) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN_TYPE, "Access Token이 아닙니다.");
+        }
+
+        // 로그아웃 처리 (JWT는 stateless이므로 클라이언트에서 토큰 삭제)
+        // 필요시 Redis에 블랙리스트 토큰 저장 가능
+        
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        // 로그 기록
+        // log.info("사용자 로그아웃: {}", email);
+    }
+
+    @Override
+    public void withdraw(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+
+        // 이미 탈퇴한 사용자인지 확인
+        if (user.getIsDeleted()) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
+        }
+
+        // 30일 보관 탈퇴 처리
+        user.withdraw();
+        userRepository.save(user);
+        
+        // 탈퇴 처리 로그
+        // log.info("회원 탈퇴 처리: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
+    }
 }

@@ -8,4 +8,6 @@ public interface UserService {
     boolean signUp(SignRequestDto signRequestDto);
     TokenResponseDto login(LoginRequestDto loginRequestDto);
     TokenResponseDto refreshToken(String refreshToken);
+    void logout(String accessToken);
+    void withdraw(String email);
 }

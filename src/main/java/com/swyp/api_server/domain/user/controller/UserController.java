@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.swyp.api_server.config.security.JwtTokenProvider;
 
 /**
  * 사용자 관리 컨트롤러
@@ -27,6 +28,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * 회원가입 API
@@ -95,5 +97,65 @@ public class UserController {
         String refreshToken = authHeader.substring(7);
         TokenResponseDto tokenResponse = userService.refreshToken(refreshToken);
         return ResponseEntity.ok(tokenResponse);
+    }
+
+    /**
+     * 로그아웃 API
+     * @param request HTTP 요청 (Authorization 헤더에서 Access Token 추출)
+     * @return 로그아웃 성공 메시지
+     */
+    @Operation(summary = "로그아웃", description = "사용자의 Access Token을 무효화하여 로그아웃 처리합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "로그아웃 성공",
+            content = @Content(examples = @ExampleObject(value = "로그아웃 성공"))),
+        @ApiResponse(responseCode = "401", description = "로그아웃 실패",
+            content = @Content(examples = {
+                @ExampleObject(name = "유효하지 않은 토큰", value = "유효하지 않은 Access Token입니다."),
+                @ExampleObject(name = "토큰 타입 오류", value = "Access Token이 아닙니다.")
+            }))
+    })
+    @PostMapping("/auth/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        userService.logout(accessToken);
+        return ResponseEntity.ok("로그아웃 성공");
+    }
+
+    /**
+     * 회원 탈퇴 API
+     * @param request HTTP 요청 (Authorization 헤더에서 사용자 정보 추출)
+     * @return 탈퇴 처리 결과 메시지
+     */
+    @Operation(summary = "회원 탈퇴", 
+        description = "회원 탈퇴를 처리합니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "탈퇴 처리 성공",
+            content = @Content(examples = @ExampleObject(value = "회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다."))),
+        @ApiResponse(responseCode = "400", description = "탈퇴 처리 실패",
+            content = @Content(examples = @ExampleObject(value = "이미 탈퇴 처리된 사용자입니다."))),
+        @ApiResponse(responseCode = "401", description = "인증 실패",
+            content = @Content(examples = @ExampleObject(value = "유효하지 않은 토큰입니다."))),
+        @ApiResponse(responseCode = "404", description = "사용자 없음",
+            content = @Content(examples = @ExampleObject(value = "존재하지 않는 사용자입니다.")))
+    })
+    @DeleteMapping("/auth/withdraw")
+    public ResponseEntity<?> withdraw(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        userService.withdraw(email);
+        
+        return ResponseEntity.ok("회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
     }
 }
