@@ -18,7 +18,7 @@ import java.util.List;
  * - 16개국 통화의 실시간 환율 정보 제공
  */
 @RestController
-@RequestMapping("/v1/api")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "환율 조회 API", description = "환율 목록을 조회하는 API")
 public class ExchangeListController {

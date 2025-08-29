@@ -19,7 +19,7 @@ import java.util.List;
  * - 실시간 환율, 차트 데이터, 과거 환율, 관련 뉴스 제공
  */
 @RestController
-@RequestMapping("/v1/api")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Exchange Rate Detail API", description = "환율 상세 정보 API")
 public class ExchangeDetailViewController {
@@ -91,35 +91,97 @@ public class ExchangeDetailViewController {
         return ResponseEntity.ok(monthlyData);
     }
 
-    /**
-     * 환율 관련 최신 뉴스 조회
-     * @return 환율 관련 뉴스 리스트
-     */
-    @GetMapping("/exchange/news")
-    @Operation(summary = "환율 관련 최신 뉴스 조회",
-               description = "검증된 금융 뉴스 제공처에서 수집한 환율 관련 최신 뉴스 기사를 제공합니다.")
-    public ResponseEntity<List<ExchangeNewsListResponseDTO>> getExchangeNewsList() {
-        // 전체 환율 관련 뉴스 조회
-        List<ExchangeNewsListResponseDTO> newsList = newsService.getExchangeNews();
-        return ResponseEntity.ok(newsList);
-    }
+    // /**
+    //  * 환율 관련 최신 뉴스 조회
+    //  * @return 환율 관련 뉴스 리스트
+    //  */
+    // @GetMapping("/exchange/news")
+    // @Operation(summary = "환율 관련 최신 뉴스 조회",
+    //            description = "검증된 금융 뉴스 제공처에서 수집한 환율 관련 최신 뉴스 기사를 제공합니다.")
+    // public ResponseEntity<List<ExchangeNewsListResponseDTO>> getExchangeNewsList() {
+    //     // 전체 환율 관련 뉴스 조회
+    //     List<ExchangeNewsListResponseDTO> newsList = newsService.getExchangeNews();
+    //     return ResponseEntity.ok(newsList);
+    // }
+
+    // /**
+    //  * 특정 통화 관련 뉴스 조회
+    //  * @param currencyCode 통화 코드
+    //  * @return 통화별 뉴스 리스트
+    //  */
+    // @GetMapping("/exchange/news/detail")
+    // @Operation(summary = "통화별 환율 관련 최신 뉴스 조회",
+    //            description = "특정 통화와 관련된 환율 뉴스 기사를 제공합니다.")
+    // public ResponseEntity<List<ExchangeNewsListResponseDTO>> getCurrencyNewsList(
+    //         @Parameter(description = "통화 코드", example = "USD", required = true)
+    //         @RequestParam String currencyCode) {
+    //     
+    //     // 특정 통화 관련 뉴스 조회
+    //     List<ExchangeNewsListResponseDTO> newsList = newsService.getCurrencyNews(currencyCode);
+    //     return ResponseEntity.ok(newsList);
+    // }
 
     /**
-     * 특정 통화 관련 뉴스 조회
-     * @param currencyCode 통화 코드
-     * @return 통화별 뉴스 리스트
+     * 환율 관련 뉴스 페이징 조회 (무한스크롤용)
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 페이징된 환율 뉴스
      */
-    @GetMapping("/exchange/news/detail")
-    @Operation(summary = "통화별 환율 관련 최신 뉴스 조회",
-               description = "특정 통화와 관련된 환율 뉴스 기사를 제공합니다.")
-    public ResponseEntity<List<ExchangeNewsListResponseDTO>> getCurrencyNewsList(
-            @Parameter(description = "통화 코드", example = "USD", required = true)
-            @RequestParam String currencyCode) {
+    @GetMapping("/exchange/news/paginated")
+    @Operation(summary = "환율 관련 뉴스 페이징 조회",
+               description = "무한스크롤을 위한 페이징된 환율 관련 뉴스를 제공합니다.")
+    public ResponseEntity<PaginatedNewsResponseDTO> getExchangeNewsPaginated(
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10") 
+            @RequestParam(defaultValue = "10") int size) {
         
-        // 특정 통화 관련 뉴스 조회
-        List<ExchangeNewsListResponseDTO> newsList = newsService.getCurrencyNews(currencyCode);
-        return ResponseEntity.ok(newsList);
+        PaginatedNewsResponseDTO paginatedNews = newsService.getExchangeNewsPaginated(page, size);
+        return ResponseEntity.ok(paginatedNews);
     }
 
+    /**
+     * 특정 통화 관련 뉴스 페이징 조회 (무한스크롤용)
+     * @param currencyCode 통화 코드
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 페이징된 통화별 뉴스
+     */
+    @GetMapping("/exchange/news/detail/paginated")
+    @Operation(summary = "통화별 뉴스 페이징 조회",
+               description = "무한스크롤을 위한 특정 통화 관련 페이징된 뉴스를 제공합니다.")
+    public ResponseEntity<PaginatedNewsResponseDTO> getCurrencyNewsPaginated(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @RequestParam String currencyCode,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10")
+            @RequestParam(defaultValue = "10") int size) {
+        
+        PaginatedNewsResponseDTO paginatedNews = newsService.getCurrencyNewsPaginated(currencyCode, page, size);
+        return ResponseEntity.ok(paginatedNews);
+    }
+
+    /**
+     * 환율 뉴스 검색 (무한스크롤용)
+     * @param searchKeyword 검색 키워드
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 검색된 환율 뉴스
+     */
+    @GetMapping("/exchange/news/search")
+    @Operation(summary = "환율 뉴스 검색",
+               description = "사용자 입력 키워드로 환율 관련 뉴스를 검색합니다. 키워드에 '환율'이 자동으로 추가됩니다.")
+    public ResponseEntity<PaginatedNewsResponseDTO> searchExchangeNews(
+            @Parameter(description = "검색 키워드", example = "달러", required = true)
+            @RequestParam String searchKeyword,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10")
+            @RequestParam(defaultValue = "10") int size) {
+        
+        PaginatedNewsResponseDTO searchResults = newsService.searchExchangeNews(searchKeyword, page, size);
+        return ResponseEntity.ok(searchResults);
+    }
 
 }

@@ -22,7 +22,7 @@ import java.util.List;
  */
 @Tag(name = "은행 정보 관리 API (관리자)", description = "은행별 환율 정보 관리 (관리자 전용)")
 @RestController
-@RequestMapping("/v1/admin/api/bank-info")
+@RequestMapping("/admin/api/bank-info")
 @RequiredArgsConstructor
 public class BankExchangeInfoController {
     

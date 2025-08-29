@@ -3,6 +3,7 @@ package com.swyp.api_server.domain.rate.service;
 import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.dto.NewsDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeNewsListResponseDTO;
+import com.swyp.api_server.domain.rate.dto.response.PaginatedNewsResponseDTO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
@@ -31,14 +32,18 @@ public class NewsServiceImpl implements NewsService {
 
     @Override
     public List<NewsDTO> getNews(String searchType) {
+        return getNewsWithPaging(searchType, 1, 10);
+    }
+    
+    private List<NewsDTO> getNewsWithPaging(String searchType, int start, int display) {
         System.out.println(naverClientId);
         System.out.println(naverClientSecret);
         OkHttpClient client = new OkHttpClient();
         okhttp3.HttpUrl url = okhttp3.HttpUrl.parse("https://openapi.naver.com/v1/search/news.json")
                 .newBuilder()
                 .addQueryParameter("query", searchType)
-                .addQueryParameter("display", "10")
-                .addQueryParameter("start", "1")
+                .addQueryParameter("display", String.valueOf(display))
+                .addQueryParameter("start", String.valueOf(start))
                 .addQueryParameter("sort", "sim")
                 .build();
 
@@ -158,6 +163,101 @@ public class NewsServiceImpl implements NewsService {
             for(NewsDTO newsDTO : newsDTOList){
                 log.info(exchangeType + "뉴스 검색" + newsDTO);
             }
+        }
+    }
+
+    @Override
+    public PaginatedNewsResponseDTO getExchangeNewsPaginated(int page, int size) {
+        try {
+            int start = (page * size) + 1;
+            List<NewsDTO> newsList = getNewsWithPaging("환율", start, size);
+            
+            List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
+                    .map(this::convertToExchangeNewsResponseDTO)
+                    .toList();
+            
+            return PaginatedNewsResponseDTO.builder()
+                    .newsList(responseList)
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalCount(1000)
+                    .hasNext(responseList.size() == size)
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("환율 뉴스 페이징 조회 중 오류 발생", e);
+            return PaginatedNewsResponseDTO.builder()
+                    .newsList(Collections.emptyList())
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalCount(0)
+                    .hasNext(false)
+                    .build();
+        }
+    }
+    
+    @Override
+    public PaginatedNewsResponseDTO getCurrencyNewsPaginated(String currencyCode, int page, int size) {
+        try {
+            String currencyName = getCurrencyName(currencyCode);
+            String searchKeyword = currencyName + " 환율";
+            
+            int start = (page * size) + 1;
+            List<NewsDTO> newsList = getNewsWithPaging(searchKeyword, start, size);
+            
+            List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
+                    .map(this::convertToExchangeNewsResponseDTO)
+                    .toList();
+            
+            return PaginatedNewsResponseDTO.builder()
+                    .newsList(responseList)
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalCount(1000)
+                    .hasNext(responseList.size() == size)
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("통화별 뉴스 페이징 조회 중 오류 발생: {}", currencyCode, e);
+            return PaginatedNewsResponseDTO.builder()
+                    .newsList(Collections.emptyList())
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalCount(0)
+                    .hasNext(false)
+                    .build();
+        }
+    }
+    
+    @Override
+    public PaginatedNewsResponseDTO searchExchangeNews(String searchKeyword, int page, int size) {
+        try {
+            String combinedKeyword = searchKeyword + " 환율";
+            
+            int start = (page * size) + 1;
+            List<NewsDTO> newsList = getNewsWithPaging(combinedKeyword, start, size);
+            
+            List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
+                    .map(this::convertToExchangeNewsResponseDTO)
+                    .toList();
+            
+            return PaginatedNewsResponseDTO.builder()
+                    .newsList(responseList)
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalCount(1000)
+                    .hasNext(responseList.size() == size)
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("환율 뉴스 검색 중 오류 발생: {}", searchKeyword, e);
+            return PaginatedNewsResponseDTO.builder()
+                    .newsList(Collections.emptyList())
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalCount(0)
+                    .hasNext(false)
+                    .build();
         }
     }
 }

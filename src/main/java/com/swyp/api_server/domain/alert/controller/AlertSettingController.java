@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping("/v1/api")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Alert Settings", description = "알림 설정 API")
 public class AlertSettingController {

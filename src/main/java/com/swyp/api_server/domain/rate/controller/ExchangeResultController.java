@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Tag(name = "환전 금액 비교 API", description = "은행별 환전 예상 금액 비교 및 계산")
 @RestController
-@RequestMapping("/v1/api")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class ExchangeResultController {
     
