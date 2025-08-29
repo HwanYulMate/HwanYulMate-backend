@@ -55,7 +55,26 @@ public class NewsServiceImpl implements NewsService {
 
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + response);
+                int statusCode = response.code();
+                String errorMessage = response.message();
+                
+                switch (statusCode) {
+                    case 400:
+                        log.error("네이버 API 요청 오류 (400): {}", errorMessage);
+                        break;
+                    case 403:
+                        log.error("네이버 API 권한 없음 (403): 검색 API 사용 설정 확인 필요");
+                        break;
+                    case 404:
+                        log.error("네이버 API 경로 오류 (404): {}", errorMessage);
+                        break;
+                    case 500:
+                        log.error("네이버 API 서버 오류 (500): {}", errorMessage);
+                        break;
+                    default:
+                        log.error("네이버 API 호출 실패: {} - {}", statusCode, errorMessage);
+                }
+                return Collections.emptyList();
             }
             String responseBody = response.body().string();
             ObjectMapper mapper = new ObjectMapper();
@@ -170,6 +189,15 @@ public class NewsServiceImpl implements NewsService {
     public PaginatedNewsResponseDTO getExchangeNewsPaginated(int page, int size) {
         try {
             int start = (page * size) + 1;
+            if (start > 1000) {
+                return PaginatedNewsResponseDTO.builder()
+                        .newsList(Collections.emptyList())
+                        .currentPage(page)
+                        .pageSize(size)
+                        .totalCount(0)
+                        .hasNext(false)
+                        .build();
+            }
             List<NewsDTO> newsList = getNewsWithPaging("환율", start, size);
             
             List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
@@ -203,6 +231,15 @@ public class NewsServiceImpl implements NewsService {
             String searchKeyword = currencyName + " 환율";
             
             int start = (page * size) + 1;
+            if (start > 1000) {
+                return PaginatedNewsResponseDTO.builder()
+                        .newsList(Collections.emptyList())
+                        .currentPage(page)
+                        .pageSize(size)
+                        .totalCount(0)
+                        .hasNext(false)
+                        .build();
+            }
             List<NewsDTO> newsList = getNewsWithPaging(searchKeyword, start, size);
             
             List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
@@ -235,6 +272,15 @@ public class NewsServiceImpl implements NewsService {
             String combinedKeyword = searchKeyword + " 환율";
             
             int start = (page * size) + 1;
+            if (start > 1000) {
+                return PaginatedNewsResponseDTO.builder()
+                        .newsList(Collections.emptyList())
+                        .currentPage(page)
+                        .pageSize(size)
+                        .totalCount(0)
+                        .hasNext(false)
+                        .build();
+            }
             List<NewsDTO> newsList = getNewsWithPaging(combinedKeyword, start, size);
             
             List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
