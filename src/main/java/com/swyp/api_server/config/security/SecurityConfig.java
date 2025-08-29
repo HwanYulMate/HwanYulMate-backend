@@ -50,12 +50,23 @@ public class SecurityConfig {
 
                 // URL별 인증/인가 규칙 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 회원가입, 로그인은 누구나 접근 가능
+                        // 회원가입, 로그인, 토큰갱신은 누구나 접근 가능
                         .requestMatchers("/api/signup", "/api/login").permitAll()
+                        .requestMatchers("/api/auth/refresh").permitAll()
                         // OAuth 로그인 관련 엔드포인트는 인증 비필요
                         .requestMatchers("/api/oauth/**").permitAll()
+                        // 환율 관련 조회 API는 공개 (인증 불필요)
+                        .requestMatchers("/api/exchangeList").permitAll()
+                        .requestMatchers("/api/exchange/realtime").permitAll()
+                        .requestMatchers("/api/exchange/chart").permitAll()
+                        .requestMatchers("/api/exchange/weekly").permitAll()
+                        .requestMatchers("/api/exchange/monthly").permitAll()
+                        .requestMatchers("/api/exchange/calculate/**").permitAll()
+                        .requestMatchers("/api/exchange/news/**").permitAll()
                         // Swagger UI 문서화 접근 허용
                         .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
+                        // 개인 설정 API는 인증 필요 (/api/auth/**, /api/alert/**)
+                        // 관리자 API는 인증 필요 (/admin/api/**)
                         // 나머지 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
