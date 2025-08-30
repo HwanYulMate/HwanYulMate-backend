@@ -4,7 +4,8 @@
       "Bash(docker-compose up:*)",
       "Bash(mkdir:*)",
       "WebFetch(domain:www.koreaexim.go.kr)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(./gradlew:*)"
     ],
     "deny": []
   }

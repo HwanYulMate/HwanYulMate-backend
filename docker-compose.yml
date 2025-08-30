@@ -23,7 +23,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # -------------------- Redis 서비스 --------------------
+  # -------------------- Redis 서비스 (실제 서비스 최적화) --------------------
   HwanYulMate-redis:
     image: redis:7.2-alpine
     container_name: HwanYulMate-redis
@@ -32,14 +32,28 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf  # Redis 설정 파일 마운트
     networks:
       - HwanYulMate-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}  # 운영환경 비밀번호 설정 가능
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
-    command: redis-server --appendonly yes
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory 512mb 
+      --maxmemory-policy allkeys-lru 
+      --tcp-keepalive 300 
+      --timeout 300
+      --tcp-backlog 511
+      --databases 16
+      --save 900 1
+      --save 300 10
+      --save 60 10000
 
   # -------------------- 백엔드 애플리케이션 서비스 --------------------
   HwanYulMate-backend:
@@ -71,9 +85,16 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_EXPIRE_TIME: ${JWT_ACCESS_TOKEN_EXPIRE_TIME}
       JWT_REFRESH_TOKEN_EXPIRE_TIME: ${JWT_REFRESH_TOKEN_EXPIRE_TIME}
-      # Redis
+      # Redis (최적화된 연결 설정)
       SPRING_DATA_REDIS_HOST: HwanYulMate-redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SPRING_DATA_REDIS_TIMEOUT: 5000ms
+      SPRING_DATA_REDIS_CONNECT_TIMEOUT: 5000ms
+      SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE: 20
+      SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE: 15
+      SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE: 5
+      SPRING_DATA_REDIS_LETTUCE_POOL_MAX_WAIT: 3000ms
       # Naver API
       NAVER_CLIENT_ID: ${NAVER_CLIENT_ID}
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}

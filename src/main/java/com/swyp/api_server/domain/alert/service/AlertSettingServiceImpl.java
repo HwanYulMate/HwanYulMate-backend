@@ -6,6 +6,7 @@ import com.swyp.api_server.domain.alert.repository.AlertSettingRepository;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.domain.notification.service.FCMService;
+import com.swyp.api_server.domain.common.service.DistributedLockService;
 import com.swyp.api_server.entity.AlertSetting;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
@@ -33,6 +34,7 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     private final UserRepository userRepository;
     private final ExchangeRateService exchangeRateService;
     private final FCMService fcmService;
+    private final DistributedLockService distributedLockService;
     
     @Override
     public void saveAlertSettings(String userEmail, List<AlertSettingRequestDTO> alertSettings) {
@@ -101,6 +103,14 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     @Override
     @Scheduled(fixedRate = 300000) // 5분마다 실행
     public void checkTargetPriceAchievement() {
+        // 분산 락으로 중복 실행 방지
+        String instanceId = java.util.UUID.randomUUID().toString();
+        if (!distributedLockService.trySchedulerLock("targetPriceCheck", instanceId)) {
+            log.debug("목표 환율 체크 스케줄러가 다른 인스턴스에서 실행 중입니다.");
+            return;
+        }
+        
+        try {
         List<AlertSetting> targetAlerts = alertSettingRepository.findActiveTargetPriceAlertsWithValidTokens();
         
         if (targetAlerts.isEmpty()) {
@@ -145,11 +155,23 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         if (successCount > 0 || failCount > 0) {
             log.info("목표 환율 체크 완료: 성공={}, 실패={}", successCount, failCount);
         }
+        
+        } finally {
+            // 스케줄러 락 해제
+            distributedLockService.releaseSchedulerLock("targetPriceCheck", instanceId);
+        }
     }
     
     @Override
     @Scheduled(cron = "0 */1 * * * *") // 매 분마다 실행 (정확한 시간 체크)
     public void sendTodayExchangeRateAlerts() {
+        // 분산 락으로 중복 실행 방지
+        String instanceId = java.util.UUID.randomUUID().toString();
+        if (!distributedLockService.trySchedulerLock("dailyExchangeRateAlerts", instanceId)) {
+            return; // 조용히 종료
+        }
+        
+        try {
         LocalTime currentTime = LocalTime.now().withSecond(0).withNano(0);
         List<AlertSetting> dailyAlerts = alertSettingRepository.findTodayExchangeRateAlertsForTimeWithValidTokens(currentTime);
         
@@ -188,6 +210,11 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         }
         
         log.info("일일 환율 알림 발송 완료: 성공={}, 실패={}", successCount, failCount);
+        
+        } finally {
+            // 스케줄러 락 해제
+            distributedLockService.releaseSchedulerLock("dailyExchangeRateAlerts", instanceId);
+        }
     }
     
     /**

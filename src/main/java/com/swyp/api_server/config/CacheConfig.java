@@ -1,5 +1,7 @@
 package com.swyp.api_server.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +27,9 @@ import java.util.Map;
 @EnableCaching
 public class CacheConfig {
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     /**
      * Redis 기반 캐시 매니저 설정
      * @param redisConnectionFactory Redis 연결 팩토리
@@ -33,12 +38,15 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         
+        // JSR310 지원하는 Jackson 직렬화기 생성
+        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+        
         // 기본 캐시 설정
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(5))  // 기본 5분 TTL
                 .disableCachingNullValues()       // null 값 캐싱 비활성화
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer));
         
         // 캐시별 개별 TTL 설정
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
@@ -61,6 +69,13 @@ public class CacheConfig {
         
         // 은행 정보 데이터: 30분 캐시 (자주 변경되지 않는 설정 정보)
         cacheConfigurations.put("bankExchangeInfo", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
+        
+        // FCM 관련 캐시: 짧은 TTL로 실시간성 보장
+        cacheConfigurations.put("fcmDuplicate", defaultCacheConfig.entryTtl(Duration.ofHours(24))); // 중복 방지는 하루
+        cacheConfigurations.put("fcmFailedTokens", defaultCacheConfig.entryTtl(Duration.ofHours(6))); // 실패 토큰은 6시간
+        
+        // 분산 락 캐시: 매우 짧은 TTL
+        cacheConfigurations.put("distributedLock", defaultCacheConfig.entryTtl(Duration.ofMinutes(10)));
         
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultCacheConfig)
