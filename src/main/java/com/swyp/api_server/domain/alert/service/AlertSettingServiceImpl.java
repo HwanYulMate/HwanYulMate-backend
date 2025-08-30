@@ -101,7 +101,16 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     @Override
     @Scheduled(fixedRate = 300000) // 5분마다 실행
     public void checkTargetPriceAchievement() {
-        List<AlertSetting> targetAlerts = alertSettingRepository.findActiveTargetPriceAlerts();
+        List<AlertSetting> targetAlerts = alertSettingRepository.findActiveTargetPriceAlertsWithValidTokens();
+        
+        if (targetAlerts.isEmpty()) {
+            log.debug("목표 환율 알림 대상이 없습니다.");
+            return;
+        }
+        
+        log.info("목표 환율 체크 시작: {} 개 알림 대상", targetAlerts.size());
+        int successCount = 0;
+        int failCount = 0;
         
         for (AlertSetting alert : targetAlerts) {
             try {
@@ -112,15 +121,29 @@ public class AlertSettingServiceImpl implements AlertSettingService {
                 // 목표 환율 달성 체크
                 if (currentPrice.compareTo(alert.getTargetPrice()) <= 0) {
                     // 목표 달성 - 알림 발송
-                    sendTargetPriceAlert(alert, currentPrice);
-                    alert.markTargetAchieved();
-                    alertSettingRepository.save(alert);
+                    boolean sent = sendTargetPriceAlert(alert, currentPrice);
+                    if (sent) {
+                        alert.markTargetAchieved();
+                        alertSettingRepository.save(alert);
+                        successCount++;
+                        log.info("목표 환율 알림 발송 성공: 사용자={}, 통화={}, 목표={}, 현재={}", 
+                                alert.getUser().getEmail(), alert.getCurrencyCode(), 
+                                alert.getTargetPrice(), currentPrice);
+                    } else {
+                        failCount++;
+                        log.warn("목표 환율 알림 발송 실패: 사용자={}", alert.getUser().getEmail());
+                    }
                 }
                 
             } catch (Exception e) {
+                failCount++;
                 log.error("목표 환율 체크 중 오류: 사용자={}, 통화={}", 
                         alert.getUser().getEmail(), alert.getCurrencyCode(), e);
             }
+        }
+        
+        if (successCount > 0 || failCount > 0) {
+            log.info("목표 환율 체크 완료: 성공={}, 실패={}", successCount, failCount);
         }
     }
     
@@ -128,7 +151,16 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     @Scheduled(cron = "0 */1 * * * *") // 매 분마다 실행 (정확한 시간 체크)
     public void sendTodayExchangeRateAlerts() {
         LocalTime currentTime = LocalTime.now().withSecond(0).withNano(0);
-        List<AlertSetting> dailyAlerts = alertSettingRepository.findTodayExchangeRateAlertsForTime(currentTime);
+        List<AlertSetting> dailyAlerts = alertSettingRepository.findTodayExchangeRateAlertsForTimeWithValidTokens(currentTime);
+        
+        if (dailyAlerts.isEmpty()) {
+            return; // 알림 대상이 없으면 조용히 종료
+        }
+        
+        log.info("일일 환율 알림 발송 시작: {} 시 {} 분, {} 개 대상", 
+                currentTime.getHour(), currentTime.getMinute(), dailyAlerts.size());
+        int successCount = 0;
+        int failCount = 0;
         
         for (AlertSetting alert : dailyAlerts) {
             try {
@@ -136,64 +168,80 @@ public class AlertSettingServiceImpl implements AlertSettingService {
                 var currentRate = exchangeRateService.getRealtimeExchangeRate(alert.getCurrencyCode());
                 
                 // 오늘의 환율 알림 발송
-                sendDailyExchangeRateAlert(alert, currentRate);
-                alert.updateLastDailyAlertSent();
-                alertSettingRepository.save(alert);
+                boolean sent = sendDailyExchangeRateAlert(alert, currentRate);
+                if (sent) {
+                    alert.updateLastDailyAlertSent();
+                    alertSettingRepository.save(alert);
+                    successCount++;
+                    log.info("일일 환율 알림 발송 성공: 사용자={}, 통화={}", 
+                            alert.getUser().getEmail(), alert.getCurrencyCode());
+                } else {
+                    failCount++;
+                    log.warn("일일 환율 알림 발송 실패: 사용자={}", alert.getUser().getEmail());
+                }
                 
             } catch (Exception e) {
+                failCount++;
                 log.error("일일 환율 알림 발송 중 오류: 사용자={}, 통화={}", 
                         alert.getUser().getEmail(), alert.getCurrencyCode(), e);
             }
         }
+        
+        log.info("일일 환율 알림 발송 완료: 성공={}, 실패={}", successCount, failCount);
     }
     
     /**
      * 목표 환율 달성 알림 발송
+     * @return 알림 발송 성공 여부
      */
-    private void sendTargetPriceAlert(AlertSetting alert, BigDecimal currentPrice) {
-        String message = String.format("%s가 목표 환율 %.2f원에 도달했습니다! (현재: %.2f원)",
-                alert.getCurrencyCode(), 
-                alert.getTargetPrice(),
-                currentPrice);
-        
-        // 실제 푸시 알림 발송 로직 (FCM, APNs 등)
-        log.info("목표 환율 달성 알림: {}", message);
-        
+    private boolean sendTargetPriceAlert(AlertSetting alert, BigDecimal currentPrice) {
         // FCM 푸시 알림 발송 (iOS 전용)
         if (alert.getUser().getFcmToken() != null) {
-            fcmService.sendTargetRateAlert(
+            boolean success = fcmService.sendTargetRateAlert(
                 alert.getUser().getFcmToken(),
                 alert.getCurrencyCode(),
                 alert.getTargetPrice().doubleValue(),
                 currentPrice.doubleValue()
             );
-            log.info("FCM 목표 환율 알림 전송: 사용자={}", alert.getUser().getEmail());
+            
+            if (success) {
+                log.debug("FCM 목표 환율 알림 전송 성공: 사용자={}", alert.getUser().getEmail());
+            } else {
+                log.error("FCM 목표 환율 알림 전송 실패: 사용자={}", alert.getUser().getEmail());
+            }
+            
+            return success;
         } else {
             log.warn("FCM 토큰이 없어 알림을 전송할 수 없습니다: 사용자={}", alert.getUser().getEmail());
+            return false;
         }
     }
     
     /**
      * 오늘의 환율 알림 발송
+     * @return 알림 발송 성공 여부
      */
-    private void sendDailyExchangeRateAlert(AlertSetting alert, 
+    private boolean sendDailyExchangeRateAlert(AlertSetting alert, 
             com.swyp.api_server.domain.rate.dto.response.ExchangeRealtimeResponseDTO currentRate) {
-        String message = String.format("오늘 %s 환율: %.2f원 (전일 대비 %.2f%%)",
-                currentRate.getCurrencyName(),
-                currentRate.getCurrentRate(),
-                currentRate.getChangeRate());
-        
-        // FCM 푸시 알림 발송
-        log.info("오늘의 환율 알림: {}", message);
         
         if (alert.getUser().getFcmToken() != null) {
-            fcmService.sendDailyRateAlert(
+            boolean success = fcmService.sendDailyRateAlert(
                 alert.getUser().getFcmToken(),
                 alert.getCurrencyCode(),
                 currentRate.getCurrentRate().doubleValue(),
                 currentRate.getPreviousRate().doubleValue()
             );
-            log.info("FCM 일일 환율 알림 전송: 사용자={}", alert.getUser().getEmail());
+            
+            if (success) {
+                log.debug("FCM 일일 환율 알림 전송 성공: 사용자={}", alert.getUser().getEmail());
+            } else {
+                log.error("FCM 일일 환율 알림 전송 실패: 사용자={}", alert.getUser().getEmail());
+            }
+            
+            return success;
+        } else {
+            log.warn("FCM 토큰이 없어 일일 환율 알림을 전송할 수 없습니다: 사용자={}", alert.getUser().getEmail());
+            return false;
         }
     }
 }
