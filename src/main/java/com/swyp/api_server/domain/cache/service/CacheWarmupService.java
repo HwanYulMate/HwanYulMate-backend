@@ -5,6 +5,7 @@ import com.swyp.api_server.domain.rate.service.NewsService;
 import com.swyp.api_server.domain.rate.service.BankExchangeInfoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -31,6 +32,12 @@ public class CacheWarmupService {
     private final BankExchangeInfoService bankExchangeInfoService;
     private final RedisTemplate<String, String> redisTemplate;
     
+    @Value("${cache.warmup.enabled:true}")
+    private boolean warmupEnabled;
+    
+    @Value("${cache.warmup.fail-fast:false}")
+    private boolean failFast;
+    
     // 주요 통화 목록 (많이 조회되는 통화들)
     private static final List<String> MAJOR_CURRENCIES = Arrays.asList(
             "USD", "EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "CNH"
@@ -42,6 +49,11 @@ public class CacheWarmupService {
     @EventListener(ApplicationReadyEvent.class)
     @Async
     public void warmupCacheOnStartup() {
+        if (!warmupEnabled) {
+            log.info("🔥 캐시 워밍업이 비활성화되어 있습니다. (cache.warmup.enabled=false)");
+            return;
+        }
+        
         log.info("🔥 캐시 워밍업 시작...");
         
         long startTime = System.currentTimeMillis();
@@ -63,7 +75,13 @@ public class CacheWarmupService {
             logWarmupStatistics();
             
         } catch (Exception e) {
-            log.error("❌ 캐시 워밍업 중 오류 발생: {}", e.getMessage(), e);
+            if (failFast) {
+                log.error("❌ 캐시 워밍업 중 오류 발생 (fail-fast=true): {}", e.getMessage(), e);
+                throw new RuntimeException("캐시 워밍업 실패로 인한 애플리케이션 시작 중단", e);
+            } else {
+                log.warn("⚠️ 캐시 워밍업 중 오류 발생했지만 애플리케이션은 계속 실행합니다: {}", e.getMessage());
+                log.debug("캐시 워밍업 오류 상세:", e);
+            }
         }
     }
     
@@ -103,7 +121,9 @@ public class CacheWarmupService {
             log.info("환율 데이터 캐시 워밍업 완료");
             
         } catch (Exception e) {
-            log.error("환율 데이터 캐시 워밍업 중 오류: {}", e.getMessage());
+            log.warn("환율 데이터 캐시 워밍업 중 오류 (외부 API 연동 문제 가능성): {}", e.getMessage());
+            log.debug("환율 데이터 캐시 워밍업 오류 상세:", e);
+            // 환율 API 오류는 흔하므로 애플리케이션 실행을 중단하지 않음
         }
         
         return CompletableFuture.completedFuture(null);
@@ -170,6 +190,10 @@ public class CacheWarmupService {
      */
     @Scheduled(cron = "0 0 1 * * *")
     public void scheduledCacheWarmup() {
+        if (!warmupEnabled) {
+            log.debug("캐시 워밍업이 비활성화되어 있어 주기적 워밍업을 건너뜁니다.");
+            return;
+        }
         log.info("주기적 캐시 워밍업 시작...");
         warmupCacheOnStartup();
     }
@@ -179,6 +203,10 @@ public class CacheWarmupService {
      */
     @Scheduled(cron = "0 0 6 * * *")
     public void morningCacheWarmup() {
+        if (!warmupEnabled) {
+            log.debug("캐시 워밍업이 비활성화되어 있어 오전 워밍업을 건너뜁니다.");
+            return;
+        }
         log.info("오전 캐시 워밍업 시작...");
         
         // 오전에는 환율 데이터와 뉴스만 워밍업
