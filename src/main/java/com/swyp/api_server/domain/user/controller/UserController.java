@@ -189,4 +189,41 @@ public class UserController {
         userService.updateFCMToken(email, fcmToken);
         return ResponseEntity.ok("FCM 토큰이 등록되었습니다.");
     }
+
+    /**
+     * 사용자 이름 변경 API
+     * @param nameChangeRequest 변경할 이름 정보
+     * @param request HTTP 요청
+     * @return 변경 결과
+     */
+    @Operation(summary = "사용자 이름 변경", 
+        description = "로그인한 사용자의 이름을 변경합니다. 소셜 로그인 사용자도 앱 내 표시명을 변경할 수 있습니다.",
+        security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "이름 변경 성공",
+            content = @Content(examples = @ExampleObject(value = "사용자 이름이 변경되었습니다."))),
+        @ApiResponse(responseCode = "400", description = "이름 변경 실패",
+            content = @Content(examples = {
+                @ExampleObject(name = "빈 이름", value = "이름은 비어있을 수 없습니다."),
+                @ExampleObject(name = "이름 길이 초과", value = "이름은 10자 이하로 입력해주세요."),
+                @ExampleObject(name = "동일한 이름", value = "현재 이름과 동일합니다.")
+            })),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    @PutMapping("/auth/profile/name")
+    public ResponseEntity<?> updateUserName(@RequestBody java.util.Map<String, String> nameChangeRequest, HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        String newUserName = nameChangeRequest.get("userName");
+        
+        userService.updateUserName(email, newUserName);
+        return ResponseEntity.ok("사용자 이름이 변경되었습니다.");
+    }
 }

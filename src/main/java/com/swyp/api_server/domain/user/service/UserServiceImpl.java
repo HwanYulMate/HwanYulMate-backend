@@ -132,4 +132,58 @@ public class UserServiceImpl implements UserService {
         
         // log.info("FCM 토큰 업데이트: {}", email);
     }
+
+    @Override
+    public void updateUserName(String email, String newUserName) {
+        // 사용자 존재 여부 확인
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+        
+        // 탈퇴한 사용자인지 확인
+        if (user.getIsDeleted()) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "탈퇴한 사용자는 이름을 변경할 수 없습니다.");
+        }
+        
+        // 이름 유효성 검증
+        validateUserName(newUserName, user.getUserName());
+        
+        // 이름 변경
+        user.setUserName(newUserName);
+        userRepository.save(user);
+        
+        // log.info("사용자 이름 변경: {} -> {}", email, newUserName);
+    }
+    
+    /**
+     * 사용자 이름 유효성 검증
+     * @param newUserName 새 이름
+     * @param currentUserName 현재 이름
+     */
+    private void validateUserName(String newUserName, String currentUserName) {
+        // null 또는 빈 문자열 검증
+        if (newUserName == null || newUserName.trim().isEmpty()) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "이름은 비어있을 수 없습니다.");
+        }
+        
+        // 공백 제거 후 재검증
+        newUserName = newUserName.trim();
+        if (newUserName.isEmpty()) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "이름은 비어있을 수 없습니다.");
+        }
+        
+        // 길이 검증 (1-10자) - 실제 서비스 수준
+        if (newUserName.length() > 10) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "이름은 10자 이하로 입력해주세요.");
+        }
+        
+        // 현재 이름과 동일한지 검증
+        if (newUserName.equals(currentUserName)) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "현재 이름과 동일합니다.");
+        }
+        
+        // 특수문자 제한 (선택적)
+        if (!newUserName.matches("^[a-zA-Z가-힣0-9\\s]+$")) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "이름에는 한글, 영문, 숫자만 사용할 수 있습니다.");
+        }
+    }
 }

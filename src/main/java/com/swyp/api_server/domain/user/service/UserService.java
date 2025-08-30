@@ -11,4 +11,5 @@ public interface UserService {
     void logout(String accessToken);
     void withdraw(String email);
     void updateFCMToken(String email, String fcmToken);
+    void updateUserName(String email, String newUserName);
 }
