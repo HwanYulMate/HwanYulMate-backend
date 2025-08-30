@@ -3,6 +3,7 @@ package com.swyp.api_server.domain.user.service;
 import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
+import com.swyp.api_server.domain.user.dto.UserInfoResponseDto;
 
 public interface UserService {
     boolean signUp(SignRequestDto signRequestDto);
@@ -12,4 +13,5 @@ public interface UserService {
     void withdraw(String email);
     void updateFCMToken(String email, String fcmToken);
     void updateUserName(String email, String newUserName);
+    UserInfoResponseDto getUserInfo(String email);
 }

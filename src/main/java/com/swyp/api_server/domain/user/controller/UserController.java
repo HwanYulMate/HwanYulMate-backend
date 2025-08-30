@@ -3,6 +3,7 @@ package com.swyp.api_server.domain.user.controller;
 import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
+import com.swyp.api_server.domain.user.dto.UserInfoResponseDto;
 import com.swyp.api_server.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -225,5 +226,34 @@ public class UserController {
         
         userService.updateUserName(email, newUserName);
         return ResponseEntity.ok("사용자 이름이 변경되었습니다.");
+    }
+
+    /**
+     * 사용자 정보 조회 API
+     * @param request HTTP 요청
+     * @return 사용자 정보
+     */
+    @Operation(summary = "사용자 정보 조회", 
+        description = "로그인한 사용자의 기본 정보를 조회합니다. (이메일, 이름, 가입일 등)",
+        security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공",
+            content = @Content(schema = @Schema(implementation = UserInfoResponseDto.class))),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    @GetMapping("/auth/profile")
+    public ResponseEntity<?> getUserInfo(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
+        }
+        
+        String accessToken = authHeader.substring(7);
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        
+        UserInfoResponseDto userInfo = userService.getUserInfo(email);
+        return ResponseEntity.ok(userInfo);
     }
 }

@@ -4,6 +4,7 @@ import com.swyp.api_server.config.security.JwtTokenProvider;
 import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
+import com.swyp.api_server.domain.user.dto.UserInfoResponseDto;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
@@ -185,5 +186,21 @@ public class UserServiceImpl implements UserService {
         if (!newUserName.matches("^[a-zA-Z가-힣0-9\\s]+$")) {
             throw new CustomException(ErrorCode.INVALID_REQUEST, "이름에는 한글, 영문, 숫자만 사용할 수 있습니다.");
         }
+    }
+
+    @Override
+    public UserInfoResponseDto getUserInfo(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+        
+        return UserInfoResponseDto.builder()
+                .email(user.getEmail())
+                .userName(user.getUserName())
+                .provider(user.getProvider())
+                .createdAt(user.getCreatedAt())
+                .isDeleted(user.getIsDeleted() != null ? user.getIsDeleted() : false)
+                .deletedAt(user.getDeletedAt())
+                .finalDeletionDate(user.getFinalDeletionDate())
+                .build();
     }
 }
