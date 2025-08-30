@@ -90,6 +90,9 @@ dependencies {
     // Jackson JSR310 모듈 (LocalDateTime 등 Java 8 시간 타입 지원)
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
+    // 이메일 전송 기능 (피드백 보내기용)
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
 }
 
 tasks.named('test') {

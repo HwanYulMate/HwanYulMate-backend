@@ -100,6 +100,12 @@ services:
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
       # Korea Eximbank API
       KOREAEXIM_API_KEY: ${KOREAEXIM_API_KEY}
+      # Email Settings (피드백 전송용)
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      FEEDBACK_ADMIN_EMAIL: ${FEEDBACK_ADMIN_EMAIL}
+      # Cache Warmup
+      CACHE_WARMUP_ENABLED: ${CACHE_WARMUP_ENABLED:-true}
 
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
