@@ -80,9 +80,6 @@ dependencies {
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
-    // Flyway (DB Migration)
-    implementation 'org.flywaydb:flyway-core'
-    implementation 'org.flywaydb:flyway-mysql'
 
     // Firebase Cloud Messaging (FCM)
     implementation 'com.google.firebase:firebase-admin:9.2.0'
