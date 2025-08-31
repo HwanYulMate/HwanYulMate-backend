@@ -138,9 +138,10 @@ public class UserController {
             content = @Content(examples = @ExampleObject(value = "존재하지 않는 사용자입니다.")))
     })
     @DeleteMapping("/auth/withdraw")
-    public ResponseEntity<?> withdraw(HttpServletRequest request) {
+    public ResponseEntity<?> withdraw(@RequestBody(required = false) java.util.Map<String, String> withdrawRequest, HttpServletRequest request) {
         String email = authUtil.extractUserEmail(request);
-        userService.withdraw(email);
+        String reason = withdrawRequest != null ? withdrawRequest.get("reason") : null;
+        userService.withdraw(email, reason);
         return ResponseEntity.ok("회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
     }
 

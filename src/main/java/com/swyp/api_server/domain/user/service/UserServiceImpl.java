@@ -106,7 +106,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void withdraw(String email) {
+    public void withdraw(String email, String reason) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
 
@@ -115,8 +115,8 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
         }
 
-        // 30일 보관 탈퇴 처리
-        user.withdraw();
+        // 30일 보관 탈퇴 처리 (이유 포함)
+        user.withdraw(reason);
         userRepository.save(user);
         
         // 탈퇴 처리 로그

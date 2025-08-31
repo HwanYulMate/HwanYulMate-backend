@@ -41,6 +41,9 @@ public class User {
     @Column(name = "final_deletion_date")
     private LocalDateTime finalDeletionDate;  // 실제 삭제 예정 날짜 (탈퇴 + 30일)
     
+    @Column(name = "withdrawal_reason", length = 500)
+    private String withdrawalReason;          // 탈퇴 이유 (선택사항)
+    
     @Column(name = "fcm_token")
     private String fcmToken;  // FCM 푸시 알림용 디바이스 토큰
     
@@ -51,10 +54,11 @@ public class User {
     /**
      * 회원 탈퇴 처리 (즉시 삭제 아닌 30일 보관)
      */
-    public void withdraw() {
+    public void withdraw(String reason) {
         this.isDeleted = true;
         this.deletedAt = LocalDateTime.now();
         this.finalDeletionDate = LocalDateTime.now().plusDays(30);
+        this.withdrawalReason = reason;
     }
     
     /**
