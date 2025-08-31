@@ -1,6 +1,6 @@
 package com.swyp.api_server.domain.feedback.controller;
 
-import com.swyp.api_server.config.security.JwtTokenProvider;
+import com.swyp.api_server.common.util.AuthUtil;
 import com.swyp.api_server.domain.feedback.dto.FeedbackRequestDto;
 import com.swyp.api_server.domain.feedback.service.FeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class FeedbackController {
     
     private final FeedbackService feedbackService;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthUtil authUtil;
 
     /**
      * 피드백 보내기 API
@@ -56,17 +56,8 @@ public class FeedbackController {
             @RequestBody FeedbackRequestDto feedbackRequest, 
             HttpServletRequest request) {
         
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String userEmail = jwtTokenProvider.getEmailFromToken(accessToken);
-        
+        String userEmail = authUtil.extractUserEmail(request);
         feedbackService.sendFeedback(userEmail, feedbackRequest);
-        
         return ResponseEntity.ok("피드백이 전송되었습니다. 소중한 의견 감사합니다!");
     }
     

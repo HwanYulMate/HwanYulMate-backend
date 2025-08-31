@@ -18,7 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
-import com.swyp.api_server.config.security.JwtTokenProvider;
+import com.swyp.api_server.common.util.AuthUtil;
 
 /**
  * 사용자 관리 컨트롤러
@@ -30,7 +30,7 @@ import com.swyp.api_server.config.security.JwtTokenProvider;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthUtil authUtil;
 
     /**
      * 회원가입 API
@@ -90,13 +90,7 @@ public class UserController {
     })
     @PostMapping("/auth/refresh")
     public ResponseEntity<?> refreshToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String refreshToken = authHeader.substring(7);
+        String refreshToken = authUtil.extractRefreshToken(request);
         TokenResponseDto tokenResponse = userService.refreshToken(refreshToken);
         return ResponseEntity.ok(tokenResponse);
     }
@@ -119,13 +113,8 @@ public class UserController {
     })
     @PostMapping("/auth/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
+        String accessToken = authUtil.extractAndValidateToken(request);
+        authUtil.validateAccessToken(accessToken);
         userService.logout(accessToken);
         return ResponseEntity.ok("로그아웃 성공");
     }
@@ -150,16 +139,8 @@ public class UserController {
     })
     @DeleteMapping("/auth/withdraw")
     public ResponseEntity<?> withdraw(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        String email = authUtil.extractUserEmail(request);
         userService.withdraw(email);
-        
         return ResponseEntity.ok("회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
     }
 
@@ -177,16 +158,8 @@ public class UserController {
     })
     @PostMapping("/fcm/token")
     public ResponseEntity<?> registerFCMToken(@RequestBody java.util.Map<String, String> fcmTokenRequest, HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        String email = authUtil.extractUserEmail(request);
         String fcmToken = fcmTokenRequest.get("fcmToken");
-        
         userService.updateFCMToken(email, fcmToken);
         return ResponseEntity.ok("FCM 토큰이 등록되었습니다.");
     }
@@ -214,16 +187,8 @@ public class UserController {
     })
     @PutMapping("/auth/profile/name")
     public ResponseEntity<?> updateUserName(@RequestBody java.util.Map<String, String> nameChangeRequest, HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        String email = authUtil.extractUserEmail(request);
         String newUserName = nameChangeRequest.get("userName");
-        
         userService.updateUserName(email, newUserName);
         return ResponseEntity.ok("사용자 이름이 변경되었습니다.");
     }
@@ -244,15 +209,7 @@ public class UserController {
     })
     @GetMapping("/auth/profile")
     public ResponseEntity<?> getUserInfo(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String email = jwtTokenProvider.getEmailFromToken(accessToken);
-        
+        String email = authUtil.extractUserEmail(request);
         UserInfoResponseDto userInfo = userService.getUserInfo(email);
         return ResponseEntity.ok(userInfo);
     }

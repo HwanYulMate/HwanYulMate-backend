@@ -38,8 +38,6 @@ public class NewsServiceImpl implements NewsService {
     }
     
     private List<NewsDTO> getNewsWithPaging(String searchType, int start, int display) {
-        System.out.println(naverClientId);
-        System.out.println(naverClientSecret);
         OkHttpClient client = new OkHttpClient();
         okhttp3.HttpUrl url = okhttp3.HttpUrl.parse("https://openapi.naver.com/v1/search/news.json")
                 .newBuilder()

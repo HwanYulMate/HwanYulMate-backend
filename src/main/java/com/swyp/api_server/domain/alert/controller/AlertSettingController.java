@@ -3,7 +3,7 @@ package com.swyp.api_server.domain.alert.controller;
 import com.swyp.api_server.domain.alert.dto.AlertSettingRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
 import com.swyp.api_server.domain.alert.service.AlertSettingService;
-import com.swyp.api_server.config.security.JwtTokenProvider;
+import com.swyp.api_server.common.util.AuthUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +29,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AlertSettingController {
     
     private final AlertSettingService alertSettingService;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthUtil authUtil;
 
     @Operation(
             summary = "통화별 알림 설정 저장",
@@ -46,13 +46,7 @@ public class AlertSettingController {
             @org.springframework.web.bind.annotation.RequestBody List<AlertSettingRequestDTO> alertSettingRequestDTO,
             HttpServletRequest request) {
         
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String userEmail = jwtTokenProvider.getEmailFromToken(accessToken);
+        String userEmail = authUtil.extractUserEmail(request);
         
         alertSettingService.saveAlertSettings(userEmail, alertSettingRequestDTO);
         return ResponseEntity.ok("알림 설정이 저장되었습니다.");
@@ -76,13 +70,7 @@ public class AlertSettingController {
             @org.springframework.web.bind.annotation.RequestBody AlertSettingDetailRequestDTO detailRequestDTO,
             HttpServletRequest request) {
         
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Authorization 헤더가 없거나 형식이 올바르지 않습니다.");
-        }
-        
-        String accessToken = authHeader.substring(7);
-        String userEmail = jwtTokenProvider.getEmailFromToken(accessToken);
+        String userEmail = authUtil.extractUserEmail(request);
         
         alertSettingService.saveDetailAlertSettings(userEmail, currencyCode, detailRequestDTO);
         return ResponseEntity.ok("알림 상세 설정이 저장되었습니다.");
