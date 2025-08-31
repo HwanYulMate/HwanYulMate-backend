@@ -30,15 +30,23 @@ public class NewsServiceImpl implements NewsService {
 
     @Value("${custom.naver-client-secret}")
     private String naverClientSecret;
+    
+    private final OkHttpClient httpClient;
+    private final ObjectMapper objectMapper;
+    
+    public NewsServiceImpl() {
+        this.httpClient = new OkHttpClient();
+        this.objectMapper = new ObjectMapper();
+    }
 
 
     @Override
+    @Cacheable(value = "news", key = "#searchType", cacheManager = "cacheManager")
     public List<NewsDTO> getNews(String searchType) {
         return getNewsWithPaging(searchType, 1, 10);
     }
     
     private List<NewsDTO> getNewsWithPaging(String searchType, int start, int display) {
-        OkHttpClient client = new OkHttpClient();
         okhttp3.HttpUrl url = okhttp3.HttpUrl.parse("https://openapi.naver.com/v1/search/news.json")
                 .newBuilder()
                 .addQueryParameter("query", searchType)
@@ -53,7 +61,7 @@ public class NewsServiceImpl implements NewsService {
                 .addHeader("X-Naver-Client-Secret", naverClientSecret)
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
+        try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 int statusCode = response.code();
                 String errorMessage = response.message();
@@ -80,8 +88,7 @@ public class NewsServiceImpl implements NewsService {
                 }
             }
             String responseBody = response.body().string();
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(responseBody);
+            JsonNode root = objectMapper.readTree(responseBody);
             JsonNode items = root.get("items");
 
             if (items != null && items.isArray()) {
@@ -236,24 +243,7 @@ public class NewsServiceImpl implements NewsService {
         try {
             String currencyName = getCurrencyName(currencyCode);
             String searchKeyword = currencyName + " 환율";
-            
-            int start = (page * size) + 1;
-            if (start > 1000) {
-                return createEmptyPaginatedResponse(page, size);
-            }
-            List<NewsDTO> newsList = getNewsWithPaging(searchKeyword, start, size);
-            
-            List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
-                    .map(this::convertToExchangeNewsResponseDTO)
-                    .toList();
-            
-            return PaginatedNewsResponseDTO.builder()
-                    .newsList(responseList)
-                    .currentPage(page)
-                    .pageSize(size)
-                    .totalCount(1000)
-                    .hasNext(responseList.size() == size)
-                    .build();
+            return searchNewsWithPagination(searchKeyword, page, size);
                     
         } catch (Exception e) {
             log.error("통화별 뉴스 페이징 조회 중 오류 발생: {}", currencyCode, e);
@@ -276,24 +266,7 @@ public class NewsServiceImpl implements NewsService {
         
         try {
             String combinedKeyword = searchKeyword + " 환율";
-            
-            int start = (page * size) + 1;
-            if (start > 1000) {
-                return createEmptyPaginatedResponse(page, size);
-            }
-            List<NewsDTO> newsList = getNewsWithPaging(combinedKeyword, start, size);
-            
-            List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
-                    .map(this::convertToExchangeNewsResponseDTO)
-                    .toList();
-            
-            return PaginatedNewsResponseDTO.builder()
-                    .newsList(responseList)
-                    .currentPage(page)
-                    .pageSize(size)
-                    .totalCount(1000)
-                    .hasNext(responseList.size() == size)
-                    .build();
+            return searchNewsWithPagination(combinedKeyword, page, size);
                     
         } catch (Exception e) {
             log.error("환율 뉴스 검색 중 오류 발생: {}", searchKeyword, e);
@@ -301,6 +274,29 @@ public class NewsServiceImpl implements NewsService {
         }
     }
     
+    /**
+     * 뉴스 검색 및 페이징 처리 공통 메서드
+     */
+    private PaginatedNewsResponseDTO searchNewsWithPagination(String keyword, int page, int size) {
+        int start = (page * size) + 1;
+        if (start > 1000) {
+            return createEmptyPaginatedResponse(page, size);
+        }
+        List<NewsDTO> newsList = getNewsWithPaging(keyword, start, size);
+        
+        List<ExchangeNewsListResponseDTO> responseList = newsList.stream()
+                .map(this::convertToExchangeNewsResponseDTO)
+                .toList();
+        
+        return PaginatedNewsResponseDTO.builder()
+                .newsList(responseList)
+                .currentPage(page)
+                .pageSize(size)
+                .totalCount(1000)
+                .hasNext(responseList.size() == size)
+                .build();
+    }
+
     /**
      * 빈 페이징 응답 생성 (공통 메서드)
      */

@@ -63,6 +63,7 @@ public class CacheConfig {
         // 뉴스 데이터: 30분 캐시 (뉴스는 실시간성이 상대적으로 덜 중요)
         cacheConfigurations.put("exchangeNews", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigurations.put("currencyNews", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("news", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
         
         // 환전 계산 데이터: 2분 캐시 (실시간 환율 반영하되 계산 부하 줄임)
         cacheConfigurations.put("exchangeCalculation", defaultCacheConfig.entryTtl(Duration.ofMinutes(2)));
