@@ -131,8 +131,8 @@ public class FCMService {
      * @return 전송 성공 여부
      */
     public boolean sendTargetRateAlert(String deviceToken, String currencyCode, double targetRate, double currentRate) {
-        String title = "목표 환율 달성!";
-        String body = String.format("%s 환율이 목표가 %,.2f원에 도달했습니다. (현재: %,.2f원)", 
+        String title = "목표 환율 달성";
+        String body = String.format("%s %,.0f원 달성 (현재 %,.0f원)", 
                 currencyCode, targetRate, currentRate);
         
         java.util.Map<String, String> data = java.util.Map.of(
@@ -157,9 +157,9 @@ public class FCMService {
         double changeRate = currentRate - previousRate;
         String changeText = changeRate > 0 ? "상승" : (changeRate < 0 ? "하락" : "보합");
         
-        String title = String.format("%s - 오늘의 환율", changeText);
-        String body = String.format("%s: %,.2f원 (전일 대비 %+.2f원)", 
-                currencyCode, currentRate, changeRate);
+        String title = "오늘의 환율";
+        String body = String.format("%s %,.0f원 (%s %+.0f원)", 
+                currencyCode, currentRate, changeText, Math.abs(changeRate));
         
         java.util.Map<String, String> data = java.util.Map.of(
                 "type", "DAILY_RATE_ALERT",
