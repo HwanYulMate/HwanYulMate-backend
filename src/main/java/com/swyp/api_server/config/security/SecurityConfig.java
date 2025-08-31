@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Spring Security 설정 클래스
@@ -23,6 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;  // JWT 인증 필터
+    private final CorsConfigurationSource corsConfigurationSource;  // CORS 설정
 
     /**
      * 비밀번호 암호화를 위한 BCryptPasswordEncoder 빈 등록
@@ -44,6 +46,9 @@ public class SecurityConfig {
         http
                 // CSRF 비활성화 (JWT 사용하므로 REST API에서는 불필요)
                 .csrf(csrf -> csrf.disable())
+                
+                // CORS 설정 적용 (Swagger UI 및 프론트엔드 개발용)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 
                 // 세션 사용하지 않음 (JWT 기반 Stateless 인증)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
