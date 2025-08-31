@@ -48,7 +48,7 @@ public class AlertSetting {
     private BigDecimal targetPrice;             // 목표 환율
     
     @Column(name = "target_price_push_how", length = 10)
-    private String targetPricePushHow;          // 알림 수단 (PUSH, KAKAO)
+    private String targetPricePushHow;          // 알림 수단 (PUSH)
     
     @Column(name = "target_achieved", nullable = false)
     @Builder.Default
