@@ -44,10 +44,10 @@ public class CacheWarmupService {
     );
     
     /**
-     * 애플리케이션 시작 시 캐시 워밍업
+     * 애플리케이션 시작 시 캐시 워밍업 (비활성화됨)
      */
-    @EventListener(ApplicationReadyEvent.class)
-    @Async
+    // @EventListener(ApplicationReadyEvent.class)
+    // @Async
     public void warmupCacheOnStartup() {
         if (!warmupEnabled) {
             log.info("🔥 캐시 워밍업이 비활성화되어 있습니다. (cache.warmup.enabled=false)");

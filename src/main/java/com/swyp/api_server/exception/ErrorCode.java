@@ -45,6 +45,7 @@ public enum ErrorCode {
     EXCHANGE_AMOUNT_BELOW_MINIMUM(HttpStatus.BAD_REQUEST, "RATE_005", "최소 환전 금액 미달입니다."),
     EXCHANGE_AMOUNT_ABOVE_MAXIMUM(HttpStatus.BAD_REQUEST, "RATE_006", "최대 환전 금액 초과입니다."),
     UNSUPPORTED_BANK(HttpStatus.BAD_REQUEST, "RATE_007", "지원하지 않는 은행입니다."),
+    EXCHANGE_RATE_API_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "RATE_008", "환율 API 호출 한도를 초과했습니다."),
 
     // 뉴스 관련 에러 (NEWS_xxx)
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "NEWS_001", "뉴스 정보를 찾을 수 없습니다."),

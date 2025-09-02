@@ -4,6 +4,7 @@ import com.swyp.api_server.domain.rate.service.BankExchangeInfoService;
 import com.swyp.api_server.entity.BankExchangeInfo;
 import com.swyp.api_server.domain.rate.dto.request.ExchangeCalculationRequestDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResultResponseDTO;
+import com.swyp.api_server.domain.rate.dto.response.ExchangeResponseDTO;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -170,12 +171,18 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
      */
     private BigDecimal getCurrentExchangeRate(String currencyCode) {
         try {
-            return exchangeRateService.getAllExchangeRates().stream()
+            // 캐시 우회하고 직접 API 호출
+            ExchangeRateServiceImpl exchangeService = (ExchangeRateServiceImpl) exchangeRateService;
+            List<ExchangeResponseDTO> rates = exchangeService.getAllExchangeRatesWithoutCache();
+            
+            return rates.stream()
                 .filter(rate -> rate.getCurrencyCode().equals(currencyCode))
                 .map(rate -> rate.getExchangeRate())
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, 
                     "환율 정보를 찾을 수 없습니다: " + currencyCode));
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("환율 조회 실패: {}", currencyCode, e);
             throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, 
