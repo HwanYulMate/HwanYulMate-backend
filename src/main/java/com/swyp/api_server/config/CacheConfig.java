@@ -11,6 +11,7 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -39,8 +40,13 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         
-        // Jackson2JsonRedisSerializer로 JSON 직렬화
-        Jackson2JsonRedisSerializer<Object> jsonSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
+        // 타입 정보 없는 안전한 ObjectMapper 생성
+        ObjectMapper cacheMapper = new ObjectMapper();
+        cacheMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        cacheMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        
+        // GenericJackson2JsonRedisSerializer 사용 (타입 정보 포함하지 않음)
+        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(cacheMapper);
         
         // 기본 캐시 설정
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
@@ -93,7 +99,12 @@ public class CacheConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory);
         
-        Jackson2JsonRedisSerializer<Object> jsonSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
+        // 타입 정보 없는 안전한 ObjectMapper 생성
+        ObjectMapper cacheMapper = new ObjectMapper();
+        cacheMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        cacheMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        
+        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(cacheMapper);
         
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(jsonSerializer);
