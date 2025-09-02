@@ -78,19 +78,16 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
      * 수출입은행 API로 환율 조회 (기존 로직)
      */
     private List<ExchangeResponseDTO> getExchangeRatesFromKoreaExim() throws Exception {
-        // 수출입은행 API: 당일 환율 조회
+        // 당일 환율 먼저 시도
         String searchDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String url = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + searchDate + "&data=AP01";
+        JsonNode responseData = tryApiCall(searchDate);
         
-        log.info("수출입은행 API 호출: {}", url);
-        String response = makeApiCall(url);
-        log.info("API 응답 길이: {}", response.length());
-        log.info("수출입은행 API 응답 내용: {}", response);
-        
-        JsonNode responseData = objectMapper.readTree(response);
-        
-        // 수출입은행 API 에러 응답 처리
-        handleKoreaEximApiResponse(responseData);
+        // 당일 데이터 없으면 전일 시도
+        if (!responseData.isArray() || responseData.size() == 0) {
+            log.info("당일 환율 데이터 없음, 전일 데이터 조회 시도");
+            searchDate = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            responseData = tryApiCall(searchDate);
+        }
         
         List<ExchangeResponseDTO> exchangeRates = new ArrayList<>();
         
@@ -133,6 +130,22 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         }
         
         return exchangeRates;
+    }
+    
+    private JsonNode tryApiCall(String searchDate) throws Exception {
+        String url = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + searchDate + "&data=AP01";
+        
+        log.info("수출입은행 API 호출: {}", url);
+        String response = makeApiCall(url);
+        log.info("API 응답 길이: {}", response.length());
+        log.info("수출입은행 API 응답 내용: {}", response);
+        
+        JsonNode responseData = objectMapper.readTree(response);
+        
+        // 수출입은행 API 에러 응답 처리
+        handleKoreaEximApiResponse(responseData);
+        
+        return responseData;
     }
     
     /**
