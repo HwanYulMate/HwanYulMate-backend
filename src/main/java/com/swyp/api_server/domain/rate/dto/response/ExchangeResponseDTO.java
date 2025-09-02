@@ -1,5 +1,7 @@
 package com.swyp.api_server.domain.rate.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,6 +16,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(name = "ExchangeResponse", description = "단일 통화 환율 응답")
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@class")
 public class ExchangeResponseDTO {
 
     @Schema(description = "통화 코드", example = "USD")
