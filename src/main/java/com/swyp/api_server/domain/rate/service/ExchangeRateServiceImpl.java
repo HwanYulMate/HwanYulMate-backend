@@ -160,21 +160,26 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             
             String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
             
-            // 현재 환율 조회 (수출입은행 API)
+            // 현재 환율 조회 (당일 → 전일 fallback)
             String searchDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String currentUrl = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + searchDate + "&data=AP01";
-            String currentResponse = makeApiCall(currentUrl);
-            JsonNode currentData = objectMapper.readTree(currentResponse);
+            JsonNode currentData = tryApiCall(searchDate);
+            int daysBack = 0;
             
-            handleKoreaEximApiResponse(currentData);
+            // 당일 데이터 없으면 전일 시도
+            if (!currentData.isArray() || currentData.size() == 0) {
+                log.info("당일 환율 데이터 없음, 전일 데이터로 실시간 환율 조회");
+                searchDate = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+                currentData = tryApiCall(searchDate);
+                daysBack = 1;
+                
+                if (!currentData.isArray() || currentData.size() == 0) {
+                    throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "환율 데이터가 없습니다.");
+                }
+            }
             
-            // 전일 환율 조회 (등락률 계산용)
-            String previousDate = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String historicalUrl = BASE_URL + "?authkey=" + apiKey + "&searchdate=" + previousDate + "&data=AP01";
-            String historicalResponse = makeApiCall(historicalUrl);
-            JsonNode historicalData = objectMapper.readTree(historicalResponse);
-            
-            handleKoreaEximApiResponse(historicalData);
+            // 비교용 전일 환율 조회 (현재 데이터 기준 하루 전)
+            String previousDate = LocalDate.now().minusDays(daysBack + 1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            JsonNode historicalData = tryApiCall(previousDate);
             
             // 현재 환율 데이터 찾기
             JsonNode currentCurrencyData = findCurrencyInResponse(currentData, mappedCurrencyCode);
