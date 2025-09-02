@@ -8,6 +8,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Getter
@@ -17,8 +18,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Schema(name = "ExchangeResponse", description = "단일 통화 환율 응답")
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@class")
-public class ExchangeResponseDTO {
+public class ExchangeResponseDTO implements Serializable {
 
     @Schema(description = "통화 코드", example = "USD")
     private String currencyCode;

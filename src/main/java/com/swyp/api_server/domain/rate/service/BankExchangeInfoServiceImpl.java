@@ -42,6 +42,10 @@ public class BankExchangeInfoServiceImpl implements BankExchangeInfoService {
         return bankRepository.findAllActiveOrderByDisplayOrder();
     }
     
+    public List<BankExchangeInfo> getAllActiveBankEntitiesWithoutCache() {
+        return bankRepository.findAllActiveOrderByDisplayOrder();
+    }
+    
     @Override
     public BankExchangeInfoResponseDTO getBankInfo(Long id) {
         BankExchangeInfo bank = bankRepository.findById(id)

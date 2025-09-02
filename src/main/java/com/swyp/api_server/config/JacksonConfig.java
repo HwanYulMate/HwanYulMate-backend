@@ -1,5 +1,6 @@
 package com.swyp.api_server.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
@@ -31,14 +32,6 @@ public class JacksonConfig {
         // 날짜를 타임스탬프가 아닌 ISO-8601 형식으로 직렬화
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
-        // 타입 정보 활성화 (Redis 캐시 직렬화용)
-        BasicPolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
-            .allowIfSubType("com.swyp.api_server")
-            .allowIfSubType("java.util")
-            .allowIfSubType("java.lang")
-            .build();
-            
-        mapper.activateDefaultTyping(typeValidator, ObjectMapper.DefaultTyping.NON_FINAL);
         
         return mapper;
     }

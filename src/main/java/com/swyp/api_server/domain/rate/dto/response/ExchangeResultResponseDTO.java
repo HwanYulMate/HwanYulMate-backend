@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Schema(name = "ExchangeResultResponse", description = "환전 결과 계산 응답")
@@ -15,7 +16,7 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExchangeResultResponseDTO {
+public class ExchangeResultResponseDTO implements Serializable {
 
     @Schema(description = "은행명", example = "KB국민은행")
     private String bankName;
@@ -65,7 +66,7 @@ public class ExchangeResultResponseDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(description = "수수료 상세 정보")
-    public static class FeeDetail {
+    public static class FeeDetail implements Serializable {
         
         @Schema(description = "고정 수수료", example = "1000.0")
         private BigDecimal fixedFee;

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.swyp.api_server.domain.rate.dto.request.ExchangeCalculationRequestDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResultResponseDTO;
 import com.swyp.api_server.domain.rate.service.ExchangeCalculationService;
+import com.swyp.api_server.domain.rate.service.ExchangeCalculationServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -109,5 +110,27 @@ public class ExchangeResultController {
         
         ExchangeResultResponseDTO result = exchangeCalculationService.calculateExchangeRate(request, bankName);
         return ResponseEntity.ok(result);
+    }
+    
+    /**
+     * 캐시 우회 환전 계산 (디버깅용)
+     */
+    @GetMapping("/exchange/calculate-nocache")
+    public ResponseEntity<List<ExchangeResultResponseDTO>> calculateExchangeRatesNoCache(
+            @RequestParam String currencyCode,
+            @RequestParam BigDecimal amount,
+            @RequestParam(defaultValue = "FOREIGN_TO_KRW") ExchangeCalculationRequestDTO.ExchangeDirection direction,
+            @RequestParam(required = false) String bank) {
+        
+        ExchangeCalculationRequestDTO request = ExchangeCalculationRequestDTO.builder()
+                .currencyCode(currencyCode.toUpperCase())
+                .amount(amount)
+                .direction(direction)
+                .specificBank(bank)
+                .build();
+        
+        ExchangeCalculationServiceImpl serviceImpl = (ExchangeCalculationServiceImpl) exchangeCalculationService;
+        List<ExchangeResultResponseDTO> results = serviceImpl.calculateExchangeRatesWithoutCache(request);
+        return ResponseEntity.ok(results);
     }
 }
