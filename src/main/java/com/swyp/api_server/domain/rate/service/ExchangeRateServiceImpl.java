@@ -142,7 +142,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         
         JsonNode responseData = objectMapper.readTree(response);
         
-        // 수출입은행 API 에러 응답 처리
+        // 수출입은행 API 에러 응답 처리 (빈 배열은 여기서 처리하지 않음)
         handleKoreaEximApiResponse(responseData);
         
         return responseData;
@@ -173,7 +173,14 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 daysBack = 1;
                 
                 if (!currentData.isArray() || currentData.size() == 0) {
-                    throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "환율 데이터가 없습니다.");
+                    log.info("전일 환율 데이터도 없음, 전전일 데이터 시도");
+                    searchDate = LocalDate.now().minusDays(2).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    currentData = tryApiCall(searchDate);
+                    daysBack = 2;
+                    
+                    if (!currentData.isArray() || currentData.size() == 0) {
+                        throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "환율 데이터가 없습니다.");
+                    }
                 }
             }
             
@@ -397,12 +404,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
      * 수출입은행 API 응답 에러 처리
      */
     private void handleKoreaEximApiResponse(JsonNode responseData) {
-        // 정상 응답이지만 배열이 비어있는 경우
-        if (responseData.isArray() && responseData.size() == 0) {
-            throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, "환율 데이터가 없습니다.");
-        }
-        
-        // 배열 응답에서 개별 아이템의 result 체크
+        // 배열 응답에서 개별 아이템의 result 체크 (에러 응답만 처리)
         if (responseData.isArray() && responseData.size() > 0) {
             JsonNode firstItem = responseData.get(0);
             if (firstItem.has("result")) {
@@ -417,6 +419,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 }
             }
         }
+        // 빈 배열은 여기서 예외를 던지지 않음 - 호출하는 곳에서 fallback 처리
     }
     
 }
