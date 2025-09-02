@@ -37,7 +37,6 @@ public class BankExchangeInfoServiceImpl implements BankExchangeInfoService {
     }
     
     @Override
-    @Cacheable(value = "bankExchangeInfo", key = "'entities_active'")
     public List<BankExchangeInfo> getAllActiveBankEntities() {
         return bankRepository.findAllActiveOrderByDisplayOrder();
     }

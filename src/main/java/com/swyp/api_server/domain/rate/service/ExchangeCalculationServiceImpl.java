@@ -45,9 +45,8 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             // 실시간 환율 조회
             BigDecimal baseRate = getCurrentExchangeRate(request.getCurrencyCode());
             
-            // DB에서 은행별 환율 정보 조회 (캐시 우회)
-            BankExchangeInfoServiceImpl bankService = (BankExchangeInfoServiceImpl) bankInfoService;
-            List<BankExchangeInfo> bankRates = bankService.getAllActiveBankEntitiesWithoutCache();
+            // DB에서 은행별 환율 정보 조회
+            List<BankExchangeInfo> bankRates = bankInfoService.getAllActiveBankEntities();
             
             // 특정 은행 필터링
             if (request.getSpecificBank() != null && !request.getSpecificBank().trim().isEmpty()) {
