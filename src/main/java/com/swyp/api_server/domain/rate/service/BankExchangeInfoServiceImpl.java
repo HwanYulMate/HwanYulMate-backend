@@ -38,7 +38,11 @@ public class BankExchangeInfoServiceImpl implements BankExchangeInfoService {
     
     @Override
     public List<BankExchangeInfo> getAllActiveBankEntities() {
-        return bankRepository.findAllActiveOrderByDisplayOrder();
+        // DTO로 캐시된 데이터를 Entity로 변환
+        List<BankExchangeInfoResponseDTO> cachedDtos = getAllActiveBanks();
+        return cachedDtos.stream()
+            .map(this::convertToEntity)
+            .collect(Collectors.toList());
     }
     
     public List<BankExchangeInfo> getAllActiveBankEntitiesWithoutCache() {
@@ -174,6 +178,27 @@ public class BankExchangeInfoServiceImpl implements BankExchangeInfoService {
                 .displayOrder(bank.getDisplayOrder())
                 .createdAt(bank.getCreatedAt())
                 .updatedAt(bank.getUpdatedAt())
+                .build();
+    }
+    
+    /**
+     * ResponseDTO → Entity 변환 (캐시된 DTO를 Entity로 변환)
+     */
+    private BankExchangeInfo convertToEntity(BankExchangeInfoResponseDTO dto) {
+        return BankExchangeInfo.builder()
+                .id(dto.getId())
+                .bankName(dto.getBankName())
+                .bankCode(dto.getBankCode())
+                .spreadRate(dto.getSpreadRate())
+                .preferentialRate(dto.getPreferentialRate())
+                .fixedFee(dto.getFixedFee())
+                .feeRate(dto.getFeeRate())
+                .minAmount(dto.getMinAmount())
+                .maxAmount(dto.getMaxAmount())
+                .isOnlineAvailable(dto.getIsOnlineAvailable())
+                .isActive(dto.getIsActive())
+                .description(dto.getDescription())
+                .displayOrder(dto.getDisplayOrder())
                 .build();
     }
     

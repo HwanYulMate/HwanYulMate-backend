@@ -40,10 +40,23 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         
-        // 타입 정보 없는 안전한 ObjectMapper 생성
+        // 타입 정보 포함하는 완전한 ObjectMapper 생성 (Entity 직렬화용)
         ObjectMapper cacheMapper = new ObjectMapper();
         cacheMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
         cacheMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        
+        // Entity 직렬화를 위한 타입 정보 활성화
+        cacheMapper.activateDefaultTyping(
+            com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("com.swyp.api_server.entity")
+                .allowIfSubType("com.swyp.api_server.domain")
+                .allowIfSubType("java.util")
+                .allowIfSubType("java.lang")
+                .allowIfSubType("java.math")
+                .allowIfSubType("java.time")
+                .build(),
+            com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.NON_FINAL
+        );
         
         // GenericJackson2JsonRedisSerializer 사용 (타입 정보 포함하지 않음)
         GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(cacheMapper);
