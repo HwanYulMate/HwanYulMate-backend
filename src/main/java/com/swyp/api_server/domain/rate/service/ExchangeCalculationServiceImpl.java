@@ -125,8 +125,16 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             finalRate = spreadAppliedRate.subtract(preferentialDiscount);
         }
         
-        // 환전 금액 계산
-        BigDecimal exchangedAmount = request.getAmount().multiply(finalRate);
+        // 환전 금액 계산 (100단위 통화 처리)
+        BigDecimal exchangedAmount;
+        if (isHundredUnitCurrency(request.getCurrencyCode())) {
+            // JPY, IDR은 100단위로 제공되므로 실제 계산 시 단위 조정
+            // 예: 10,000엔 환전 = (10,000 ÷ 100) × (100엔당 환율)
+            BigDecimal adjustedAmount = request.getAmount().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            exchangedAmount = adjustedAmount.multiply(finalRate);
+        } else {
+            exchangedAmount = request.getAmount().multiply(finalRate);
+        }
         
         // 수수료 계산
         ExchangeResultResponseDTO.FeeDetail feeDetail = calculateFee(exchangedAmount, bankInfo);
@@ -150,6 +158,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             .finalAmount(finalAmount)
             .inputAmount(request.getAmount())
             .currencyCode(request.getCurrencyCode())
+            .flagImageUrl(getFlagImageUrl(request.getCurrencyCode()))
             .isOnlineAvailable(bankInfo.getIsOnlineAvailable())
             .description(bankInfo.getDescription())
             .build();
@@ -221,6 +230,25 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             throw new CustomException(ErrorCode.INVALID_REQUEST,
                 String.format("%s 최대 환전 금액은 %s %s입니다.", 
                     bankInfo.getBankName(), bankInfo.getMaxAmount(), "USD"));
+        }
+    }
+    
+    /**
+     * 100단위로 제공되는 통화인지 확인
+     */
+    private boolean isHundredUnitCurrency(String currencyCode) {
+        return "JPY".equals(currencyCode) || "IDR".equals(currencyCode);
+    }
+    
+    /**
+     * 통화 코드에 해당하는 국기 이미지 URL 조회
+     */
+    private String getFlagImageUrl(String currencyCode) {
+        try {
+            return com.swyp.api_server.domain.rate.ExchangeList.ExchangeType
+                .valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
+        } catch (IllegalArgumentException e) {
+            return "/images/flags/default.svg"; // 기본 이미지 반환
         }
     }
 }

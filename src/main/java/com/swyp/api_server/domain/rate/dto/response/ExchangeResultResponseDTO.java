@@ -51,6 +51,9 @@ public class ExchangeResultResponseDTO implements Serializable {
     @Schema(description = "통화 코드", example = "USD")
     private String currencyCode;
     
+    @Schema(description = "국기 이미지 URL", example = "/images/flags/us.svg")
+    private String flagImageUrl;
+    
     @Schema(description = "온라인 환전 가능 여부", example = "true")
     private boolean isOnlineAvailable;
     

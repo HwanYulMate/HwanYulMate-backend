@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 /**
  * 환율 목록 조회 컨트롤러
- * - 16개국 통화의 실시간 환율 정보 제공
+ * - 14개국 통화의 실시간 환율 정보 제공
  */
 @RestController
 @RequestMapping("/api")
@@ -26,12 +26,12 @@ public class ExchangeListController {
     private final ExchangeRateService exchangeRateService;
 
     /**
-     * 16개국 통화의 실시간 환율 목록 조회
-     * @return 16개국 환율 정보 리스트
+     * 14개국 통화의 실시간 환율 목록 조회
+     * @return 14개국 환율 정보 리스트
      */
     @GetMapping("/exchangeList")
     @Operation(summary = "실시간 환율 목록 조회", 
-               description = "16개국 통화의 실시간 환율 정보를 목록 형태로 조회합니다.")
+               description = "14개국 통화의 실시간 환율 정보를 목록 형태로 조회합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 환율 목록을 조회함"),
         @ApiResponse(responseCode = "503", description = "환율 API 서비스 오류"),

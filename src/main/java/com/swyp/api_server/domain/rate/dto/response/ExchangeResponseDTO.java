@@ -26,6 +26,9 @@ public class ExchangeResponseDTO implements Serializable {
     @Schema(description = "통화 이름", example = "미국 달러")
     private String currencyName;
 
+    @Schema(description = "국기 이미지 URL", example = "/images/flags/us.svg")
+    private String flagImageUrl;
+
     @Schema(description = "환율 값 (1 외화 = ? 원)", example = "1380.25")
     private BigDecimal exchangeRate;
 

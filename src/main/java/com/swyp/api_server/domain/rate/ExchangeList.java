@@ -16,30 +16,30 @@ public enum ExchangeList {
      * 필요에 따라 값을 추가하세요 (예: 환율 코드 또는 거래소 식별자)
      */
     public enum ExchangeType {
-        USD("USD", "미국 달러"),
-        JPY("JPY", "일본 엔"),
-        EUR("EUR", "유럽 유로"),
-        CNY("CNY", "중국 위안"),
-        HKD("HKD", "홍콩 달러"),
-        TWD("TWD", "대만 달러"),
-        THB("THB", "태국 바트"),
-        SGD("SGD", "싱가폴 달러"),
-        PHP("PHP", "필리핀 페소"),
-        IDR("IDR", "인도네시아 루피아"),
-        MYR("MYR", "말레이시아 링깃"),
-        GBP("GBP", "영국 파운드"),
-        CAD("CAD", "캐나다 달러"),
-        AUD("AUD", "호주 달러"),
-        NZD("NZD", "뉴질랜드 달러"),
-        CHF("CHF", "스위스 프랑");
+        USD("USD", "미국 달러", "/images/flags/us.svg"),
+        JPY("JPY", "일본 엔", "/images/flags/jp.svg"),
+        EUR("EUR", "유럽 유로", "/images/flags/eu.svg"),
+        CNY("CNY", "중국 위안", "/images/flags/cn.svg"),
+        HKD("HKD", "홍콩 달러", "/images/flags/hk.svg"),
+        THB("THB", "태국 바트", "/images/flags/th.svg"),
+        SGD("SGD", "싱가폴 달러", "/images/flags/sg.svg"),
+        IDR("IDR", "인도네시아 루피아", "/images/flags/id.svg"),
+        MYR("MYR", "말레이시아 링깃", "/images/flags/my.svg"),
+        GBP("GBP", "영국 파운드", "/images/flags/gb.svg"),
+        CAD("CAD", "캐나다 달러", "/images/flags/ca.svg"),
+        AUD("AUD", "호주 달러", "/images/flags/au.svg"),
+        NZD("NZD", "뉴질랜드 달러", "/images/flags/nz.svg"),
+        CHF("CHF", "스위스 프랑", "/images/flags/ch.svg");
 
 
         private final String code;
         private final String label;
+        private final String flagImageUrl;
 
-        ExchangeType(String code, String label) {
+        ExchangeType(String code, String label, String flagImageUrl) {
             this.code = code;
             this.label = label;
+            this.flagImageUrl = flagImageUrl;
         }
 
         public String getCode() {
@@ -48,6 +48,10 @@ public enum ExchangeList {
 
         public String getLabel() {
             return label;
+        }
+
+        public String getFlagImageUrl() {
+            return flagImageUrl;
         }
 
         /**

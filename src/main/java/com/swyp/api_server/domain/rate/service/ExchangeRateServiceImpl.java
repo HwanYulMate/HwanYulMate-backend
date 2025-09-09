@@ -29,7 +29,7 @@ import java.util.List;
  * 환율 데이터 조회 서비스 구현체
  * - 한국 수출입은행 API 사용하여 공식 환율 정보 제공
  * - 캐싱 기능으로 API 호출 최적화 (하루 1000회 제한)
- * - 16개국 통화 지원
+ * - 14개국 통화 지원
  */
 @Slf4j
 @Service
@@ -91,7 +91,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         
         List<ExchangeResponseDTO> exchangeRates = new ArrayList<>();
         
-        // 16개국 통화 순회하며 환율 정보 매핑
+        // 14개국 통화 순회하며 환율 정보 매핑
         for (ExchangeList.ExchangeType currency : ExchangeList.ExchangeType.values()) {
             String currencyCode = currency.getCode();
             
@@ -116,6 +116,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                     ExchangeResponseDTO dto = ExchangeResponseDTO.builder()
                             .currencyCode(currencyCode)
                             .currencyName(currency.getLabel())
+                            .flagImageUrl(currency.getFlagImageUrl())
                             .exchangeRate(exchangeRate)
                             .baseDate(searchDate)
                             .build();
@@ -223,10 +224,12 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             BigDecimal changeAmount = currentRate.subtract(previousRate);
             
             String currencyName = getCurrencyName(currencyCode);
+            String flagImageUrl = getFlagImageUrl(currencyCode);
             
             return ExchangeRealtimeResponseDTO.builder()
                     .currencyCode(currencyCode)
                     .currencyName(currencyName)
+                    .flagImageUrl(flagImageUrl)
                     .currentRate(currentRate)
                     .previousRate(previousRate)
                     .changeAmount(changeAmount)
@@ -362,6 +365,17 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getLabel();
         } catch (IllegalArgumentException e) {
             return currencyCode; // 찾을 수 없으면 코드 그대로 반환
+        }
+    }
+    
+    /**
+     * 통화 코드에 해당하는 국기 이미지 URL 조회
+     */
+    private String getFlagImageUrl(String currencyCode) {
+        try {
+            return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
+        } catch (IllegalArgumentException e) {
+            return "/images/flags/default.svg"; // 기본 이미지 반환
         }
     }
     
