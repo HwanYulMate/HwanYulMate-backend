@@ -1,9 +1,12 @@
 package com.swyp.api_server.domain.rate.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.swyp.api_server.common.dto.ErrorResponse;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResponseDTO;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
 import lombok.RequiredArgsConstructor;
@@ -33,9 +36,21 @@ public class ExchangeListController {
     @Operation(summary = "실시간 환율 목록 조회", 
                description = "14개국 통화의 실시간 환율 정보를 목록 형태로 조회합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 환율 목록을 조회함"),
-        @ApiResponse(responseCode = "503", description = "환율 API 서비스 오류"),
-        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 환율 목록을 조회함",
+            content = @Content(schema = @Schema(implementation = ExchangeResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 API 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<List<ExchangeResponseDTO>> getExchangeList() {
         // ExchangeRateService를 통해 실제 환율 데이터 조회

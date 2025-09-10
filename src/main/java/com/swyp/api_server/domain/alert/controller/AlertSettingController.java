@@ -16,9 +16,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import com.swyp.api_server.common.dto.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -37,9 +39,31 @@ public class AlertSettingController {
             security = @SecurityRequirement(name = "BearerAuth")
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "알림 설정 저장 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-            @ApiResponse(responseCode = "401", description = "인증 필요")
+            @ApiResponse(
+                responseCode = "200", 
+                description = "알림 설정 저장 성공",
+                content = @Content(examples = @ExampleObject(value = "알림 설정이 저장되었습니다."))
+            ),
+            @ApiResponse(
+                responseCode = "400", 
+                description = "잘못된 요청 (유효하지 않은 통화 코드, 잘못된 알림 설정 데이터 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PostMapping("/alert/setting")
     public ResponseEntity<String> saveAlertSettings(
@@ -59,9 +83,31 @@ public class AlertSettingController {
             security = @SecurityRequirement(name = "BearerAuth")
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "알림 상세 설정 저장 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-            @ApiResponse(responseCode = "401", description = "인증 필요")
+            @ApiResponse(
+                responseCode = "200", 
+                description = "알림 상세 설정 저장 성공",
+                content = @Content(examples = @ExampleObject(value = "알림 상세 설정이 저장되었습니다."))
+            ),
+            @ApiResponse(
+                responseCode = "400", 
+                description = "잘못된 요청 (지원하지 않는 통화 코드, 잘못된 알림 상세 설정 데이터 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PostMapping("/alert/setting/{currencyCode}/detail")
     public ResponseEntity<String> saveDetailAlertSettings(

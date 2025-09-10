@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import com.swyp.api_server.common.dto.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,10 +40,21 @@ public class UserController {
      */
     @Operation(summary = "회원가입", description = "이메일, 비밀번호, 사용자명으로 새 계정을 생성합니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "회원가입 성공",
-            content = @Content(examples = @ExampleObject(value = "회원가입 완료"))),
-        @ApiResponse(responseCode = "400", description = "회원가입 실패",
-            content = @Content(examples = @ExampleObject(value = "이미 존재하는 이메일입니다.")))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "회원가입 성공",
+            content = @Content(examples = @ExampleObject(value = "회원가입 완료"))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "회원가입 실패 (이미 존재하는 이메일 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignRequestDto signRequestDto) {
@@ -57,13 +69,21 @@ public class UserController {
      */
     @Operation(summary = "로그인", description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "로그인 성공",
-            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))),
-        @ApiResponse(responseCode = "400", description = "로그인 실패",
-            content = @Content(examples = {
-                @ExampleObject(name = "존재하지 않는 사용자", value = "존재하지 않는 사용자입니다."),
-                @ExampleObject(name = "비밀번호 불일치", value = "비밀번호가 일치하지 않습니다.")
-            }))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "로그인 성공",
+            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "로그인 실패 (존재하지 않는 사용자, 비밀번호 불일치 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequestDto) {
@@ -79,14 +99,21 @@ public class UserController {
      */
     @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token과 Refresh Token을 발급받습니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
-            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))),
-        @ApiResponse(responseCode = "401", description = "토큰 갱신 실패",
-            content = @Content(examples = {
-                @ExampleObject(name = "만료된 토큰", value = "Refresh Token이 만료되었습니다."),
-                @ExampleObject(name = "잘못된 토큰 타입", value = "유효하지 않은 토큰 타입입니다."),
-                @ExampleObject(name = "토큰 없음", value = "토큰이 없습니다.")
-            }))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "토큰 갱신 성공",
+            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "토큰 갱신 실패 (만료된 토큰, 잘못된 토큰 타입, 토큰 없음 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/auth/refresh")
     public ResponseEntity<?> refreshToken(HttpServletRequest request) {
@@ -103,13 +130,21 @@ public class UserController {
     @Operation(summary = "로그아웃", description = "사용자의 Access Token을 무효화하여 로그아웃 처리합니다.",
                security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "로그아웃 성공",
-            content = @Content(examples = @ExampleObject(value = "로그아웃 성공"))),
-        @ApiResponse(responseCode = "401", description = "로그아웃 실패",
-            content = @Content(examples = {
-                @ExampleObject(name = "유효하지 않은 토큰", value = "유효하지 않은 Access Token입니다."),
-                @ExampleObject(name = "토큰 타입 오류", value = "Access Token이 아닙니다.")
-            }))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "로그아웃 성공",
+            content = @Content(examples = @ExampleObject(value = "로그아웃 성공"))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "로그아웃 실패 (유효하지 않은 토큰, 토큰 타입 오류 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/auth/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
@@ -128,14 +163,26 @@ public class UserController {
         description = "회원 탈퇴를 처리합니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다.",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "탈퇴 처리 성공",
-            content = @Content(examples = @ExampleObject(value = "회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다."))),
-        @ApiResponse(responseCode = "400", description = "탈퇴 처리 실패",
-            content = @Content(examples = @ExampleObject(value = "이미 탈퇴 처리된 사용자입니다."))),
-        @ApiResponse(responseCode = "401", description = "인증 실패",
-            content = @Content(examples = @ExampleObject(value = "유효하지 않은 토큰입니다."))),
-        @ApiResponse(responseCode = "404", description = "사용자 없음",
-            content = @Content(examples = @ExampleObject(value = "존재하지 않는 사용자입니다.")))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "탈퇴 처리 성공",
+            content = @Content(examples = @ExampleObject(value = "회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다."))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "탈퇴 처리 실패 (이미 탈퇴 처리된 사용자 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패 (유효하지 않은 토큰 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "사용자 없음",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @DeleteMapping("/auth/withdraw")
     public ResponseEntity<?> withdraw(@RequestBody(required = false) java.util.Map<String, String> withdrawRequest, HttpServletRequest request) {
@@ -154,8 +201,26 @@ public class UserController {
     @Operation(summary = "FCM 토큰 등록", description = "iOS 앱의 FCM 토큰을 등록하여 푸시 알림을 받을 수 있도록 설정합니다.",
                security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "FCM 토큰 등록 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "FCM 토큰 등록 성공",
+            content = @Content(examples = @ExampleObject(value = "FCM 토큰이 등록되었습니다."))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "잘못된 요청 (유효하지 않은 FCM 토큰 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/fcm/token")
     public ResponseEntity<?> registerFCMToken(@RequestBody java.util.Map<String, String> fcmTokenRequest, HttpServletRequest request) {
@@ -175,16 +240,26 @@ public class UserController {
         description = "로그인한 사용자의 이름을 변경합니다. 소셜 로그인 사용자도 앱 내 표시명을 변경할 수 있습니다.",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "이름 변경 성공",
-            content = @Content(examples = @ExampleObject(value = "사용자 이름이 변경되었습니다."))),
-        @ApiResponse(responseCode = "400", description = "이름 변경 실패",
-            content = @Content(examples = {
-                @ExampleObject(name = "빈 이름", value = "이름은 비어있을 수 없습니다."),
-                @ExampleObject(name = "이름 길이 초과", value = "이름은 10자 이하로 입력해주세요."),
-                @ExampleObject(name = "동일한 이름", value = "현재 이름과 동일합니다.")
-            })),
-        @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "사용자 없음")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "이름 변경 성공",
+            content = @Content(examples = @ExampleObject(value = "사용자 이름이 변경되었습니다."))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "이름 변경 실패 (빈 이름, 길이 초과, 동일한 이름 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "사용자 없음",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PutMapping("/auth/profile/name")
     public ResponseEntity<?> updateUserName(@RequestBody java.util.Map<String, String> nameChangeRequest, HttpServletRequest request) {
@@ -203,10 +278,21 @@ public class UserController {
         description = "로그인한 사용자의 기본 정보를 조회합니다. (이메일, 이름, 가입일 등)",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공",
-            content = @Content(schema = @Schema(implementation = UserInfoResponseDto.class))),
-        @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "사용자 없음")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "사용자 정보 조회 성공",
+            content = @Content(schema = @Schema(implementation = UserInfoResponseDto.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "사용자 없음",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/auth/profile")
     public ResponseEntity<?> getUserInfo(HttpServletRequest request) {

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.swyp.api_server.common.dto.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,12 +37,26 @@ public class OAuthController {
      */
     @Operation(summary = "OAuth 콜백 처리", description = "OAuth Authorization Code Flow를 통한 소셜 로그인 콜백 처리 (현재 미구현)")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "로그인 성공",
-            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))),
-        @ApiResponse(responseCode = "400", description = "로그인 실패",
-            content = @Content(examples = @ExampleObject(value = "OAuth 로그인 실패: [error message]"))),
-        @ApiResponse(responseCode = "501", description = "미구현 기능",
-            content = @Content(examples = @ExampleObject(value = "OAuth 코드 플로우는 아직 구현되지 않았습니다.")))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "로그인 성공",
+            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "OAuth 로그인 실패 (잘못된 코드, 제공자 오류 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "501", 
+            description = "미구현 기능",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/callback/{provider}")
     public ResponseEntity<?> oauthCallback(
@@ -62,15 +77,28 @@ public class OAuthController {
     @Operation(summary = "소셜 로그인", 
         description = "OAuth 액세스 토큰을 사용하여 소셜 로그인을 처리합니다. 모바일 앱에서 주로 사용됩니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "소셜 로그인 성공",
+        @ApiResponse(
+            responseCode = "200", 
+            description = "소셜 로그인 성공",
             content = @Content(schema = @Schema(implementation = TokenResponseDto.class),
                 examples = @ExampleObject(name = "성공 응답", 
-                    value = "{\"accessToken\": \"eyJ0eXAiOiJKV1QiLi4.\", \"refreshToken\": \"eyJ0eXAiOiJKV1QiLi4.\", \"tokenType\": \"Bearer\"}"))),
-        @ApiResponse(responseCode = "400", description = "소셜 로그인 실패",
-            content = @Content(examples = {
-                @ExampleObject(name = "잘못된 액세스 토큰", value = "소셜 로그인 실패: 사용자 정보 조회 실패"),
-                @ExampleObject(name = "지원하지 않는 제공자", value = "소셜 로그인 실패: 지원하지 않는 소셜 로그인 제공자입니다")
-            }))
+                    value = "{\"accessToken\": \"eyJ0eXAiOiJKV1QiLi4.\", \"refreshToken\": \"eyJ0eXAiOiJKV1QiLi4.\", \"tokenType\": \"Bearer\"}"))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "소셜 로그인 실패 (잘못된 액세스 토큰, 지원하지 않는 제공자 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패 (만료된 또는 잘못된 액세스 토큰)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/{provider}")
     public ResponseEntity<?> socialLogin(

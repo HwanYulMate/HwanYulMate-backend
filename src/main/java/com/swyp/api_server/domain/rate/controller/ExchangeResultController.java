@@ -2,9 +2,12 @@ package com.swyp.api_server.domain.rate.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.swyp.api_server.common.dto.ErrorResponse;
 
 import com.swyp.api_server.domain.rate.dto.request.ExchangeCalculationRequestDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResultResponseDTO;
@@ -39,10 +42,26 @@ public class ExchangeResultController {
         description = "실시간 환율 정보를 기반으로 여러 은행의 환전 예상 금액을 비교합니다. 우대율과 수수료가 모두 반영됩니다."
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 환전 결과를 반환함"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효하지 않은 통화 코드 또는 금액)"),
-        @ApiResponse(responseCode = "503", description = "환율 API 서비스 오류"),
-        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 환전 결과를 반환함",
+            content = @Content(schema = @Schema(implementation = ExchangeResultResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "잘못된 요청 (유효하지 않은 통화 코드 또는 금액)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 API 서비스 오류",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버 내부 오류",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/exchange/calculate")
     public ResponseEntity<List<ExchangeResultResponseDTO>> calculateExchangeRates(
@@ -60,9 +79,26 @@ public class ExchangeResultController {
         description = "GET 방식으로 간단하게 환전 예상 금액을 계산합니다. 기본값: 외화→원화 방향"
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 환전 결과를 반환함"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-        @ApiResponse(responseCode = "500", description = "서버 에러 발생")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 환전 결과를 반환함",
+            content = @Content(schema = @Schema(implementation = ExchangeResultResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "잘못된 요청 (유효하지 않은 통화 코드 또는 금액)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 API 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/exchange/calculate")
     public ResponseEntity<List<ExchangeResultResponseDTO>> calculateExchangeRatesSimple(
@@ -97,9 +133,31 @@ public class ExchangeResultController {
         description = "지정한 은행의 환전 예상 금액을 계산합니다."
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 환전 결과를 반환함"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 지원하지 않는 은행"),
-        @ApiResponse(responseCode = "500", description = "서버 에러 발생")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 환전 결과를 반환함",
+            content = @Content(schema = @Schema(implementation = ExchangeResultResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "잘못된 요청 또는 지원하지 않는 은행",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "해당 은행의 환율 정보를 찾을 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 API 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/exchange/calculate/{bankName}")
     public ResponseEntity<ExchangeResultResponseDTO> calculateSpecificBankRate(
@@ -115,6 +173,32 @@ public class ExchangeResultController {
     /**
      * 캐시 우회 환전 계산 (디버깅용)
      */
+    @Operation(
+        summary = "캐시 우회 환전 계산",
+        description = "디버깅용 API로 캐시를 우회하여 환전 예상 금액을 실시간으로 계산합니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 환전 결과를 반환함",
+            content = @Content(schema = @Schema(implementation = ExchangeResultResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "잘못된 요청 (유효하지 않은 통화 코드 또는 금액)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 API 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
     @GetMapping("/exchange/calculate-nocache")
     public ResponseEntity<List<ExchangeResultResponseDTO>> calculateExchangeRatesNoCache(
             @RequestParam String currencyCode,

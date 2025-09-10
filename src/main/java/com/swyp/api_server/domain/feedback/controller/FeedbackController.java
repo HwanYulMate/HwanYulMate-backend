@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.swyp.api_server.common.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,17 +40,31 @@ public class FeedbackController {
         description = "사용자의 피드백(버그 신고, 기능 제안, 문의사항 등)을 담당자 이메일로 전송합니다.",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "피드백 전송 성공",
-            content = @Content(examples = @ExampleObject(value = "피드백이 전송되었습니다. 소중한 의견 감사합니다!"))),
-        @ApiResponse(responseCode = "400", description = "피드백 전송 실패",
-            content = @Content(examples = {
-                @ExampleObject(name = "잘못된 유형", value = "올바른 피드백 유형을 선택해주세요. (bug, suggestion, question, other)"),
-                @ExampleObject(name = "내용 길이 초과", value = "피드백 내용은 1자 이상 2000자 이하로 입력해주세요."),
-                @ExampleObject(name = "빈 내용", value = "피드백 내용을 입력해주세요.")
-            })),
-        @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "500", description = "서버 오류",
-            content = @Content(examples = @ExampleObject(value = "피드백 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")))
+        @ApiResponse(
+            responseCode = "200", 
+            description = "피드백 전송 성공",
+            content = @Content(examples = @ExampleObject(value = "피드백이 전송되었습니다. 소중한 의견 감사합니다!"))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "피드백 전송 실패 (잘못된 유형, 내용 길이 초과, 빈 내용 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "사용자를 찾을 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping("/feedback")
     public ResponseEntity<?> sendFeedback(
@@ -68,7 +83,18 @@ public class FeedbackController {
     @Operation(summary = "피드백 유형 조회", 
         description = "사용 가능한 피드백 유형 목록을 조회합니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "피드백 유형 조회 성공")
+        @ApiResponse(
+            responseCode = "200", 
+            description = "피드백 유형 조회 성공",
+            content = @Content(examples = @ExampleObject(
+                name = "피드백 유형 목록",
+                value = "{\"bug\": \"버그 신고\", \"suggestion\": \"기능 제안\", \"question\": \"문의사항\", \"other\": \"기타 피드백\"}"))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/feedback/types")
     public ResponseEntity<?> getFeedbackTypes() {
