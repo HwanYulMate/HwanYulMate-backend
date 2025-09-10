@@ -1,6 +1,7 @@
 package com.swyp.api_server.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swyp.api_server.common.constants.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -10,7 +11,6 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -63,7 +63,7 @@ public class CacheConfig {
         
         // 기본 캐시 설정
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(5))  // 기본 5분 TTL
+                .entryTtl(Duration.ofMinutes(Constants.Cache.DEFAULT_TTL_MINUTES))  // 기본 TTL
                 .disableCachingNullValues()       // null 값 캐싱 비활성화
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer));
@@ -72,31 +72,42 @@ public class CacheConfig {
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         
         // 전체 환율 목록: 5분 캐시 (수출입은행 API 제한 고려 - 1000회/일)
-        cacheConfigurations.put("exchangeRates", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put(Constants.Cache.EXCHANGE_RATES, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.EXCHANGE_RATE_TTL_MINUTES)));
         
         // 실시간 환율: 5분 캐시 (수출입은행 API 제한 고려)
-        cacheConfigurations.put("realtimeRate", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put(Constants.Cache.REALTIME_RATE, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.REALTIME_RATE_TTL_MINUTES)));
         
         // 과거 환율 데이터: 10분 캐시 (변동이 적으므로 오래 캐싱)
-        cacheConfigurations.put("historicalRate", defaultCacheConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put(Constants.Cache.HISTORICAL_RATE, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.HISTORICAL_RATE_TTL_MINUTES)));
         
         // 뉴스 데이터: 30분 캐시 (뉴스는 실시간성이 상대적으로 덜 중요)
-        cacheConfigurations.put("exchangeNews", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("currencyNews", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("news", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put(Constants.Cache.EXCHANGE_NEWS, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.NEWS_TTL_MINUTES)));
+        cacheConfigurations.put(Constants.Cache.CURRENCY_NEWS, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.NEWS_TTL_MINUTES)));
+        cacheConfigurations.put(Constants.Cache.NEWS, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.NEWS_TTL_MINUTES)));
         
         // 환전 계산 데이터: 2분 캐시 (실시간 환율 반영하되 계산 부하 줄임)
-        cacheConfigurations.put("exchangeCalculation", defaultCacheConfig.entryTtl(Duration.ofMinutes(2)));
+        cacheConfigurations.put(Constants.Cache.EXCHANGE_CALCULATION, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.EXCHANGE_CALCULATION_TTL_MINUTES)));
         
         // 은행 정보 데이터: 30분 캐시 (자주 변경되지 않는 설정 정보)
-        cacheConfigurations.put("bankExchangeInfo", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put(Constants.Cache.BANK_EXCHANGE_INFO, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.BANK_INFO_TTL_MINUTES)));
         
         // FCM 관련 캐시: 짧은 TTL로 실시간성 보장
-        cacheConfigurations.put("fcmDuplicate", defaultCacheConfig.entryTtl(Duration.ofHours(24))); // 중복 방지는 하루
-        cacheConfigurations.put("fcmFailedTokens", defaultCacheConfig.entryTtl(Duration.ofHours(6))); // 실패 토큰은 6시간
+        cacheConfigurations.put(Constants.Cache.FCM_DUPLICATE, 
+            defaultCacheConfig.entryTtl(Duration.ofHours(Constants.Cache.FCM_DUPLICATE_TTL_HOURS))); // 중복 방지는 하루
+        cacheConfigurations.put(Constants.Cache.FCM_FAILED_TOKENS, 
+            defaultCacheConfig.entryTtl(Duration.ofHours(Constants.Cache.FCM_FAILED_TOKENS_TTL_HOURS))); // 실패 토큰은 6시간
         
         // 분산 락 캐시: 매우 짧은 TTL
-        cacheConfigurations.put("distributedLock", defaultCacheConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put(Constants.Cache.DISTRIBUTED_LOCK, 
+            defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.DISTRIBUTED_LOCK_TTL_MINUTES)));
         
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultCacheConfig)

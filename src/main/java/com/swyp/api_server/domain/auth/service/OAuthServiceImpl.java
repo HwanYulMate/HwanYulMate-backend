@@ -1,7 +1,8 @@
 package com.swyp.api_server.domain.auth.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swyp.api_server.common.http.CommonHttpClient;
+import com.swyp.api_server.common.validator.CommonValidator;
 import com.swyp.api_server.config.security.JwtTokenProvider;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
 import com.swyp.api_server.domain.user.repository.UserRepository;
@@ -10,11 +11,10 @@ import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -29,8 +29,8 @@ public class OAuthServiceImpl implements OAuthService {
 
     private final UserRepository userRepository;        // 사용자 데이터 저장소
     private final JwtTokenProvider jwtTokenProvider;    // JWT 토큰 생성기
-    private final OkHttpClient httpClient = new OkHttpClient();     // HTTP 클라이언트
-    private final ObjectMapper objectMapper = new ObjectMapper();   // JSON 파서
+    private final CommonHttpClient httpClient;          // HTTP 클라이언트
+    private final CommonValidator validator;            // 공통 검증기
 
     /**
      * OAuth Authorization Code Flow 처리 (TODO: 향후 구현 예정)
@@ -80,7 +80,7 @@ public class OAuthServiceImpl implements OAuthService {
      * @return 사용자 기본 정보 (이메일, 이름)
      * @throws IOException API 호출 실패 시
      */
-    private UserInfo getUserInfo(String provider, String accessToken) throws IOException {
+    private UserInfo getUserInfo(String provider, String accessToken) {
         // OAuth 제공자별 사용자 정보 API URL 결정
         String url = switch (provider.toLowerCase()) {
             case "google" -> "https://www.googleapis.com/oauth2/v2/userinfo";
@@ -89,20 +89,12 @@ public class OAuthServiceImpl implements OAuthService {
         };
 
         // OAuth 제공자 API에 사용자 정보 요청
-        Request request = new Request.Builder()
-                .url(url)
-                .addHeader("Authorization", "Bearer " + accessToken)  // Bearer 토큰 인증
-                .build();
+        Map<String, String> headers = Map.of(
+            "Authorization", "Bearer " + accessToken
+        );
 
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new CustomException(ErrorCode.OAUTH_USER_INFO_FAILED, 
-                    "HTTP Status: " + response.code() + ", Provider: " + provider);
-            }
-
-            // API 응답에서 사용자 정보 추출
-            String responseBody = response.body().string();
-            JsonNode jsonNode = objectMapper.readTree(responseBody);
+        try {
+            JsonNode jsonNode = httpClient.getJson(url, headers);
 
             // 제공자별 JSON 구조에 맞옶 사용자 정보 파싱
             return switch (provider.toLowerCase()) {
@@ -116,6 +108,10 @@ public class OAuthServiceImpl implements OAuthService {
                         .build();
                 default -> throw new CustomException(ErrorCode.OAUTH_PROVIDER_NOT_SUPPORTED, "제공자: " + provider);
             };
+        } catch (Exception e) {
+            log.error("OAuth 사용자 정보 조회 실패: provider={}, error={}", provider, e.getMessage(), e);
+            throw new CustomException(ErrorCode.OAUTH_USER_INFO_FAILED, 
+                "사용자 정보 조회 실패: " + provider + " - " + e.getMessage());
         }
     }
 
@@ -126,6 +122,9 @@ public class OAuthServiceImpl implements OAuthService {
      * @return 데이터베이스에 저장된 User 엔티티
      */
     private User findOrCreateUser(UserInfo userInfo, String provider) {
+        // 이메일 형식 검증
+        validator.validateEmailFormat(userInfo.getEmail());
+        
         // 기존 사용자 조회 (이메일 기반)
         Optional<User> existingUser = userRepository.findByEmail(userInfo.getEmail());
         

@@ -1,6 +1,7 @@
 package com.swyp.api_server.domain.notification.service;
 
 import com.google.firebase.messaging.*;
+import com.swyp.api_server.common.constants.Constants;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +16,6 @@ import java.util.stream.Collectors;
 @Service
 @Log4j2
 public class FCMService {
-    
-    private static final int BATCH_SIZE = 500; // Firebase 배치 전송 최대 크기
-    private static final int MAX_RETRY_COUNT = 2; // 최대 재시도 횟수
     
     // 통계용 카운터
     private long totalSentCount = 0;
@@ -98,17 +96,17 @@ public class FCMService {
         }
         
         // 재시도 가능한 에러들 (네트워크, 서버 오류 등)
-        if (retryCount < MAX_RETRY_COUNT && 
+        if (retryCount < Constants.Fcm.MAX_RETRY_COUNT && 
            (errorCode == MessagingErrorCode.UNAVAILABLE ||
             errorCode == MessagingErrorCode.INTERNAL ||
             errorCode == MessagingErrorCode.QUOTA_EXCEEDED)) {
             
             log.warn("FCM 전송 실패, 재시도 예정: {}, 에러코드={}, 재시도={}/{}", 
-                    deviceToken, errorCode, retryCount + 1, MAX_RETRY_COUNT);
+                    deviceToken, errorCode, retryCount + 1, Constants.Fcm.MAX_RETRY_COUNT);
             
             // 재시도 간격 (1초, 2초)
             try {
-                Thread.sleep((retryCount + 1) * 1000);
+                Thread.sleep((retryCount + 1) * Constants.Fcm.RETRY_BASE_DELAY_MS);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
@@ -117,7 +115,7 @@ public class FCMService {
         }
         
         log.error("FCM 전송 최종 실패: {}, 에러코드={}, 재시도완료={}/{}", 
-                deviceToken, errorCode, retryCount, MAX_RETRY_COUNT);
+                deviceToken, errorCode, retryCount, Constants.Fcm.MAX_RETRY_COUNT);
         totalFailCount++;
         return false;
     }
@@ -136,7 +134,7 @@ public class FCMService {
                 currencyCode, targetRate, currentRate);
         
         java.util.Map<String, String> data = java.util.Map.of(
-                "type", "TARGET_RATE_ACHIEVED",
+                "type", Constants.Fcm.TARGET_RATE_ACHIEVED,
                 "currencyCode", currencyCode,
                 "targetRate", String.valueOf(targetRate),
                 "currentRate", String.valueOf(currentRate)
@@ -162,7 +160,7 @@ public class FCMService {
                 currencyCode, currentRate, changeText, Math.abs(changeRate));
         
         java.util.Map<String, String> data = java.util.Map.of(
-                "type", "DAILY_RATE_ALERT",
+                "type", Constants.Fcm.DAILY_RATE_ALERT,
                 "currencyCode", currencyCode,
                 "currentRate", String.valueOf(currentRate),
                 "previousRate", String.valueOf(previousRate),
@@ -200,8 +198,8 @@ public class FCMService {
         int totalSuccessCount = 0;
         
         // 500개씩 배치로 나누어 전송
-        for (int i = 0; i < validTokens.size(); i += BATCH_SIZE) {
-            int endIndex = Math.min(i + BATCH_SIZE, validTokens.size());
+        for (int i = 0; i < validTokens.size(); i += Constants.Fcm.BATCH_SIZE) {
+            int endIndex = Math.min(i + Constants.Fcm.BATCH_SIZE, validTokens.size());
             List<String> batchTokens = validTokens.subList(i, endIndex);
             
             int batchSuccessCount = sendBatchWithRetry(batchTokens, title, body, data, 0);
@@ -252,14 +250,14 @@ public class FCMService {
             }
             
             // 실패한 토큰들에 대해 재시도 처리
-            if (failureCount > 0 && retryCount < MAX_RETRY_COUNT) {
+            if (failureCount > 0 && retryCount < Constants.Fcm.MAX_RETRY_COUNT) {
                 List<String> failedTokens = getFailedTokensForRetry(deviceTokens, response);
                 if (!failedTokens.isEmpty()) {
                     log.warn("배치 전송 실패 토큰 재시도: {} 개, 재시도={}/{}", 
-                            failedTokens.size(), retryCount + 1, MAX_RETRY_COUNT);
+                            failedTokens.size(), retryCount + 1, Constants.Fcm.MAX_RETRY_COUNT);
                     
                     // 재시도 간격
-                    Thread.sleep((retryCount + 1) * 1000);
+                    Thread.sleep((retryCount + 1) * Constants.Fcm.RETRY_BASE_DELAY_MS);
                     
                     int retrySuccessCount = sendBatchWithRetry(failedTokens, title, body, data, retryCount + 1);
                     successCount += retrySuccessCount;

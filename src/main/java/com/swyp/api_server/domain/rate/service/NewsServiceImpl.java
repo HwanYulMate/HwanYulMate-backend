@@ -1,28 +1,29 @@
 package com.swyp.api_server.domain.rate.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.swyp.api_server.common.constants.Constants;
+import com.swyp.api_server.common.http.CommonHttpClient;
+import com.swyp.api_server.common.validator.CommonValidator;
 import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.dto.NewsDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeNewsListResponseDTO;
 import com.swyp.api_server.domain.rate.dto.response.PaginatedNewsResponseDTO;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 
 @Service
 @Log4j2
+@RequiredArgsConstructor
 public class NewsServiceImpl implements NewsService {
 
     @Value("${custom.naver-client-id}")
@@ -31,65 +32,34 @@ public class NewsServiceImpl implements NewsService {
     @Value("${custom.naver-client-secret}")
     private String naverClientSecret;
     
-    private final OkHttpClient httpClient;
-    private final ObjectMapper objectMapper;
-    
-    public NewsServiceImpl() {
-        this.httpClient = new OkHttpClient();
-        this.objectMapper = new ObjectMapper();
-    }
+    private final CommonHttpClient httpClient;
+    private final CommonValidator validator;
 
 
     @Override
-    @Cacheable(value = "news", key = "#searchType", cacheManager = "cacheManager")
+    @Cacheable(value = Constants.Cache.NEWS, key = "#searchType", cacheManager = "cacheManager")
     public List<NewsDTO> getNews(String searchType) {
-        return getNewsWithPaging(searchType, 1, 10);
+        return getNewsWithPaging(searchType, 1, Constants.News.DEFAULT_NEWS_SIZE);
     }
     
     private List<NewsDTO> getNewsWithPaging(String searchType, int start, int display) {
-        okhttp3.HttpUrl url = okhttp3.HttpUrl.parse("https://openapi.naver.com/v1/search/news.json")
-                .newBuilder()
-                .addQueryParameter("query", searchType)
-                .addQueryParameter("display", String.valueOf(display))
-                .addQueryParameter("start", String.valueOf(start))
-                .addQueryParameter("sort", "sim")
-                .build();
+        Map<String, String> params = Map.of(
+            "query", searchType,
+            "display", String.valueOf(display),
+            "start", String.valueOf(start),
+            "sort", "sim"
+        );
+        
+        String url = httpClient.buildUrl("https://openapi.naver.com/v1/search/news.json", params);
+        
+        Map<String, String> headers = Map.of(
+            "X-Naver-Client-Id", naverClientId,
+            "X-Naver-Client-Secret", naverClientSecret
+        );
 
-        Request request = new Request.Builder()
-                .url(url)
-                .addHeader("X-Naver-Client-Id", naverClientId)
-                .addHeader("X-Naver-Client-Secret", naverClientSecret)
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                int statusCode = response.code();
-                String errorMessage = response.message();
-                
-                switch (statusCode) {
-                    case 400:
-                        log.error("네이버 API 요청 오류 (400): {}", errorMessage);
-                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
-                    case 403:
-                        log.error("네이버 API 권한 없음 (403): 검색 API 사용 설정 확인 필요");
-                        throw new CustomException(ErrorCode.NEWS_API_UNAUTHORIZED);
-                    case 429:
-                        log.error("네이버 API 호출 한도 초과 (429): {}", errorMessage);
-                        throw new CustomException(ErrorCode.NEWS_API_QUOTA_EXCEEDED);
-                    case 404:
-                        log.error("네이버 API 경로 오류 (404): {}", errorMessage);
-                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
-                    case 500:
-                        log.error("네이버 API 서버 오류 (500): {}", errorMessage);
-                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
-                    default:
-                        log.error("네이버 API 호출 실패: {} - {}", statusCode, errorMessage);
-                        throw new CustomException(ErrorCode.NEWS_API_ERROR);
-                }
-            }
-            String responseBody = response.body().string();
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode items = root.get("items");
+        try {
+            JsonNode responseData = httpClient.getJson(url, headers);
+            JsonNode items = responseData.get("items");
 
             if (items != null && items.isArray()) {
                 List<NewsDTO> results = new ArrayList<>();
@@ -105,15 +75,16 @@ public class NewsServiceImpl implements NewsService {
                 return results;
             }
 
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            log.error("뉴스 조회 중 오류 발생: {}", e.getMessage(), e);
+            throw new CustomException(ErrorCode.NEWS_API_ERROR, "뉴스 조회 실패: " + e.getMessage());
         }
         return Collections.emptyList();
     }
 
 
     @Override
-    @Cacheable(value = "exchangeNews", cacheManager = "cacheManager")
+    @Cacheable(value = Constants.Cache.EXCHANGE_NEWS, cacheManager = "cacheManager")
     public List<ExchangeNewsListResponseDTO> getExchangeNews() {
         try {
             // "환율" 키워드로 전체 환율 뉴스 조회
@@ -198,12 +169,7 @@ public class NewsServiceImpl implements NewsService {
     @Override
     public PaginatedNewsResponseDTO getExchangeNewsPaginated(int page, int size) {
         // 입력 유효성 검증
-        if (page < 0) {
-            throw new CustomException(ErrorCode.NEWS_INVALID_PAGE_PARAMETER);
-        }
-        if (size < 1 || size > 100) {
-            throw new CustomException(ErrorCode.NEWS_INVALID_SIZE_PARAMETER);
-        }
+        validator.validateNewsPageParams(page, size);
         
         try {
             int start = (page * size) + 1;
@@ -233,12 +199,8 @@ public class NewsServiceImpl implements NewsService {
     @Override
     public PaginatedNewsResponseDTO getCurrencyNewsPaginated(String currencyCode, int page, int size) {
         // 입력 유효성 검증
-        if (page < 0) {
-            throw new CustomException(ErrorCode.NEWS_INVALID_PAGE_PARAMETER);
-        }
-        if (size < 1 || size > 100) {
-            throw new CustomException(ErrorCode.NEWS_INVALID_SIZE_PARAMETER);
-        }
+        validator.validateCurrencyCode(currencyCode);
+        validator.validateNewsPageParams(page, size);
         
         try {
             String currencyName = getCurrencyName(currencyCode);
@@ -257,12 +219,7 @@ public class NewsServiceImpl implements NewsService {
         if (searchKeyword == null || searchKeyword.trim().isEmpty()) {
             throw new CustomException(ErrorCode.NEWS_SEARCH_KEYWORD_EMPTY);
         }
-        if (page < 0) {
-            throw new CustomException(ErrorCode.NEWS_INVALID_PAGE_PARAMETER);
-        }
-        if (size < 1 || size > 100) {
-            throw new CustomException(ErrorCode.NEWS_INVALID_SIZE_PARAMETER);
-        }
+        validator.validateNewsPageParams(page, size);
         
         try {
             String combinedKeyword = searchKeyword + " 환율";
