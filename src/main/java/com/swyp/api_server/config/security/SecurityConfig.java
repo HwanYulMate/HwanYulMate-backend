@@ -71,7 +71,7 @@ public class SecurityConfig {
                         // 피드백 유형 조회는 공개
                         .requestMatchers("/api/feedback/types").permitAll()
                         // Swagger UI 문서화 접근 허용
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         // 개인 설정 API는 인증 필요 (/api/auth/**, /api/alert/**)
                         // 관리자 API는 인증 필요 (/admin/api/**)
                         // 나머지 모든 요청은 인증 필요
