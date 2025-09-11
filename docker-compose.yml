@@ -89,7 +89,6 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - FEEDBACK_ADMIN_EMAIL=${FEEDBACK_ADMIN_EMAIL}
       - CACHE_WARMUP_ENABLED=${CACHE_WARMUP_ENABLED}
-      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       - FCM_PROJECT_ID=${FCM_PROJECT_ID}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
