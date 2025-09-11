@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   # -------------------- 데이터베이스 서비스 --------------------
-  HwanYulMate-db:
+  hwanyulmate-db:
     image: mysql:8.0
-    container_name: HwanYulMate-db
+    container_name: hwanyulmate-db
     restart: always # 컨테이너 비정상 종료 시 항상 재시작
     environment:
       MYSQL_DATABASE: ${DB_NAME}
@@ -16,7 +14,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - HwanYulMate-network
+      - hwanyulmate-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -24,9 +22,9 @@ services:
       retries: 5
 
   # -------------------- Redis 서비스 (실제 서비스 최적화) --------------------
-  HwanYulMate-redis:
+  hwanyulmate-redis:
     image: redis:7.2-alpine
-    container_name: HwanYulMate-redis
+    container_name: hwanyulmate-redis
     restart: always
     ports:
       - "6379:6379"
@@ -34,7 +32,7 @@ services:
       - redis_data:/data
       - ./redis.conf:/usr/local/etc/redis/redis.conf  # Redis 설정 파일 마운트
     networks:
-      - HwanYulMate-network
+      - hwanyulmate-network
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}  # 운영환경 비밀번호 설정 가능
     healthcheck:
@@ -56,17 +54,17 @@ services:
       --save 60 10000
 
   # -------------------- Spring Boot 앱 서비스 --------------------
-  HwanYulMate-app:
+  hwanyulmate-app:
     build: .
-    container_name: HwanYulMate-app
+    container_name: hwanyulmate-app
     restart: always
     ports:
       - "${SERVER_PORT}:8084"
     networks:
-      - HwanYulMate-network
+      - hwanyulmate-network
     depends_on:
-      - HwanYulMate-db
-      - HwanYulMate-redis
+      - hwanyulmate-db
+      - hwanyulmate-redis
     environment:
       - SERVER_PORT=${SERVER_PORT}
       - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -105,5 +103,5 @@ volumes:
   redis_data:
 
 networks:
-  HwanYulMate-network:
+  hwanyulmate-network:
     driver: bridge
