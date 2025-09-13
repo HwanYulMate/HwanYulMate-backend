@@ -3,6 +3,8 @@ package com.swyp.api_server.common.util;
 import com.swyp.api_server.config.security.JwtTokenProvider;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
+import com.swyp.api_server.domain.user.repository.UserRepository;
+import com.swyp.api_server.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class AuthUtil {
     
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
     
     /**
      * HTTP 요청에서 JWT 토큰을 추출하고 검증
@@ -87,5 +90,17 @@ public class AuthUtil {
         }
         
         return authHeader.substring(7);
+    }
+    
+    /**
+     * HTTP 요청에서 사용자 ID 추출
+     * @param request HTTP 요청
+     * @return 사용자 ID
+     */
+    public Long extractUserId(HttpServletRequest request) {
+        String userEmail = extractUserEmail(request);
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + userEmail));
+        return user.getId();
     }
 }

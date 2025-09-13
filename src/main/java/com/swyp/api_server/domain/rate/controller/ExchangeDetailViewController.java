@@ -4,7 +4,9 @@ import com.swyp.api_server.common.dto.ErrorResponse;
 import com.swyp.api_server.domain.rate.dto.request.ExchangeRequestDTO;
 import com.swyp.api_server.domain.rate.dto.response.*;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
+import com.swyp.api_server.domain.rate.service.ExchangeRateHistoryService;
 import com.swyp.api_server.domain.rate.service.NewsService;
+import com.swyp.api_server.domain.rate.dto.ExchangeRateWithChangeDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,21 +32,22 @@ import java.util.List;
 public class ExchangeDetailViewController {
     
     private final ExchangeRateService exchangeRateService;
+    private final ExchangeRateHistoryService historyService;
     private final NewsService newsService;
 
     /**
-     * 특정 통화의 실시간 환율 및 등락률 조회
+     * 특정 통화의 실시간 환율 및 변동률 조회 (변동률 포함)
      * @param currencyCode 통화 코드 (USD, JPY, EUR 등)
-     * @return 실시간 환율과 등락률 정보
+     * @return 실시간 환율과 변동률 정보 (exchangeList와 동일한 구조)
      */
     @GetMapping("/exchange/realtime")
-    @Operation(summary = "실시간 환율 및 등락률 조회",
-               description = "선택한 통화의 현재 환율과 전일 대비 등락률을 조회합니다.")
+    @Operation(summary = "실시간 환율 및 변동률 조회 (변동률 포함)",
+               description = "선택한 통화의 현재 환율과 전일 대비 변동률을 조회합니다. exchangeList와 동일한 구조로 반환됩니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
             description = "성공적으로 실시간 환율을 조회함",
-            content = @Content(schema = @Schema(implementation = ExchangeRealtimeResponseDTO.class))
+            content = @Content(schema = @Schema(implementation = ExchangeRateWithChangeDto.class))
         ),
         @ApiResponse(
             responseCode = "400", 
@@ -62,11 +65,14 @@ public class ExchangeDetailViewController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    public ResponseEntity<ExchangeRealtimeResponseDTO> getRealtimeExchange(
+    public ResponseEntity<ExchangeRateWithChangeDto> getRealtimeExchange(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @RequestParam String currencyCode) {
         
-        ExchangeRealtimeResponseDTO realtimeData = exchangeRateService.getRealtimeExchangeRate(currencyCode);
+        ExchangeRateWithChangeDto realtimeData = historyService.getRateWithChange(currencyCode);
+        if (realtimeData == null) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(realtimeData);
     }
 
@@ -182,6 +188,120 @@ public class ExchangeDetailViewController {
         
         List<ExchangeChartResponseDTO> monthlyData = exchangeRateService.getHistoricalExchangeRate(currencyCode, 30);
         return ResponseEntity.ok(monthlyData);
+    }
+
+    /**
+     * 특정 통화의 최근 3개월 환율 변동 조회
+     * @param currencyCode 통화 코드
+     * @return 최근 90일간의 환율 데이터
+     */
+    @GetMapping("/exchange/3months")
+    @Operation(summary = "최근 3개월 환율 변동 조회",
+               description = "최근 90일간의 환율 변동 정보를 제공합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 3개월 환율 데이터를 조회함",
+            content = @Content(schema = @Schema(implementation = ExchangeChartResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "지원하지 않는 통화 코드입니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "해당 통화의 환율 정보를 찾을 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 정보 조회 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    public ResponseEntity<List<ExchangeChartResponseDTO>> get3MonthsExchange(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @RequestParam String currencyCode) {
+        
+        List<ExchangeChartResponseDTO> quarterlyData = exchangeRateService.getHistoricalExchangeRate(currencyCode, 90);
+        return ResponseEntity.ok(quarterlyData);
+    }
+
+    /**
+     * 특정 통화의 최근 6개월 환율 변동 조회
+     * @param currencyCode 통화 코드
+     * @return 최근 180일간의 환율 데이터
+     */
+    @GetMapping("/exchange/6months")
+    @Operation(summary = "최근 6개월 환율 변동 조회",
+               description = "최근 180일간의 환율 변동 정보를 제공합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 6개월 환율 데이터를 조회함",
+            content = @Content(schema = @Schema(implementation = ExchangeChartResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "지원하지 않는 통화 코드입니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "해당 통화의 환율 정보를 찾을 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 정보 조회 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    public ResponseEntity<List<ExchangeChartResponseDTO>> get6MonthsExchange(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @RequestParam String currencyCode) {
+        
+        List<ExchangeChartResponseDTO> biannualData = exchangeRateService.getHistoricalExchangeRate(currencyCode, 180);
+        return ResponseEntity.ok(biannualData);
+    }
+
+    /**
+     * 특정 통화의 최근 1년 환율 변동 조회
+     * @param currencyCode 통화 코드
+     * @return 최근 365일간의 환율 데이터
+     */
+    @GetMapping("/exchange/yearly")
+    @Operation(summary = "최근 1년 환율 변동 조회",
+               description = "최근 365일간의 환율 변동 정보를 제공합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200", 
+            description = "성공적으로 1년 환율 데이터를 조회함",
+            content = @Content(schema = @Schema(implementation = ExchangeChartResponseDTO.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "지원하지 않는 통화 코드입니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "해당 통화의 환율 정보를 찾을 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "503", 
+            description = "환율 정보 조회 서비스가 일시적으로 이용할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    public ResponseEntity<List<ExchangeChartResponseDTO>> getYearlyExchange(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @RequestParam String currencyCode) {
+        
+        List<ExchangeChartResponseDTO> yearlyData = exchangeRateService.getHistoricalExchangeRate(currencyCode, 365);
+        return ResponseEntity.ok(yearlyData);
     }
 
     // /**

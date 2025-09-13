@@ -2,6 +2,7 @@ package com.swyp.api_server.domain.alert.controller;
 
 import com.swyp.api_server.domain.alert.dto.AlertSettingRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
+import com.swyp.api_server.domain.alert.dto.AlertSettingResponseDTO;
 import com.swyp.api_server.domain.alert.service.AlertSettingService;
 import com.swyp.api_server.common.util.AuthUtil;
 import org.springframework.http.ResponseEntity;
@@ -120,5 +121,82 @@ public class AlertSettingController {
         
         alertSettingService.saveDetailAlertSettings(userEmail, currencyCode, detailRequestDTO);
         return ResponseEntity.ok("알림 상세 설정이 저장되었습니다.");
+    }
+
+    @Operation(
+            summary = "사용자 전체 알림 설정 조회",
+            description = "사용자의 모든 활성화된 알림 설정을 조회합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "알림 설정 조회 성공",
+                content = @Content(
+                    mediaType = "application/json",
+                    array = @ArraySchema(schema = @Schema(implementation = AlertSettingResponseDTO.class))
+                )
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/alert/settings")
+    public ResponseEntity<List<AlertSettingResponseDTO>> getAllAlertSettings(HttpServletRequest request) {
+        Long userId = authUtil.extractUserId(request);
+        List<AlertSettingResponseDTO> alertSettings = alertSettingService.getAllAlertSettings(userId);
+        return ResponseEntity.ok(alertSettings);
+    }
+
+    @Operation(
+            summary = "특정 통화 알림 설정 조회",
+            description = "특정 통화에 대한 알림 설정을 조회합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "알림 설정 조회 성공",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertSettingResponseDTO.class)
+                )
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자 또는 알림 설정을 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/alert/setting/{currencyCode}")
+    public ResponseEntity<AlertSettingResponseDTO> getAlertSetting(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            HttpServletRequest request) {
+        Long userId = authUtil.extractUserId(request);
+        AlertSettingResponseDTO alertSetting = alertSettingService.getAlertSetting(userId, currencyCode);
+        return ResponseEntity.ok(alertSetting);
     }
 }

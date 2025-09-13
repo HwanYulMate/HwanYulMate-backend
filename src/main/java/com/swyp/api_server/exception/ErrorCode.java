@@ -60,6 +60,7 @@ public enum ErrorCode {
     ALERT_NOT_FOUND(HttpStatus.NOT_FOUND, "ALERT_001", "해당 알림 설정을 찾을 수 없습니다. 알림 ID를 확인해주세요."),
     ALERT_CREATION_FAILED(HttpStatus.BAD_REQUEST, "ALERT_002", "알림 설정 생성 중 오류가 발생했습니다. 입력 정보를 확인하고 다시 시도해주세요."),
     INVALID_ALERT_CONDITION(HttpStatus.BAD_REQUEST, "ALERT_003", "알림 조건이 올바르지 않습니다. 목표 환율과 통화 코드를 확인해주세요."),
+    ALERT_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "ALERT_004", "해당 통화의 알림 설정을 찾을 수 없습니다."),
     
     // Redis 캐시 관련 에러 (CACHE_xxx)
     CACHE_CONNECTION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "CACHE_001", "캐시 서버에 연결할 수 없습니다. 서버 상태를 확인 중입니다."),

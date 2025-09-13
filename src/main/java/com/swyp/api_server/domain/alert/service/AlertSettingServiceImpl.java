@@ -2,7 +2,10 @@ package com.swyp.api_server.domain.alert.service;
 
 import com.swyp.api_server.domain.alert.dto.AlertSettingRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
+import com.swyp.api_server.domain.alert.dto.AlertSettingResponseDTO;
+import com.swyp.api_server.domain.alert.dto.AlertSettingListResponseDTO;
 import com.swyp.api_server.domain.alert.repository.AlertSettingRepository;
+import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.domain.notification.service.FCMService;
@@ -20,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 알림 설정 서비스 구현체
@@ -270,5 +275,43 @@ public class AlertSettingServiceImpl implements AlertSettingService {
             log.warn("FCM 토큰이 없어 일일 환율 알림을 전송할 수 없습니다: 사용자={}", alert.getUser().getEmail());
             return false;
         }
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<AlertSettingResponseDTO> getAllAlertSettings(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
+        
+        List<AlertSetting> alertSettings = alertSettingRepository.findByUserAndIsActiveTrue(user);
+        return alertSettings.stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AlertSettingResponseDTO getAlertSetting(Long userId, String currencyCode) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
+        
+        Optional<AlertSetting> alertSetting = alertSettingRepository.findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode);
+        if (alertSetting.isPresent()) {
+            return convertToResponseDTO(alertSetting.get());
+        } else {
+            throw new CustomException(ErrorCode.ALERT_SETTING_NOT_FOUND, "알림 설정을 찾을 수 없습니다: " + currencyCode);
+        }
+    }
+
+    private AlertSettingResponseDTO convertToResponseDTO(AlertSetting alertSetting) {
+        return new AlertSettingResponseDTO(
+                alertSetting.getCurrencyCode(),
+                alertSetting.getTargetPricePush(),
+                alertSetting.getTodayExchangeRatePush(),
+                alertSetting.getTargetPrice(),
+                alertSetting.getTargetPricePushHow(),
+                alertSetting.getTodayExchangeRatePushTime() != null ? 
+                        alertSetting.getTodayExchangeRatePushTime().toString() : null
+        );
     }
 }

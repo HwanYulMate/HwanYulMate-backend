@@ -66,6 +66,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/exchange/chart").permitAll()
                         .requestMatchers("/api/exchange/weekly").permitAll()
                         .requestMatchers("/api/exchange/monthly").permitAll()
+                        .requestMatchers("/api/exchange/3months").permitAll()
+                        .requestMatchers("/api/exchange/6months").permitAll()
+                        .requestMatchers("/api/exchange/yearly").permitAll()
                         .requestMatchers("/api/exchange/calculate/**").permitAll()
                         .requestMatchers("/api/exchange/news/**").permitAll()
                         // 피드백 유형 조회는 공개
