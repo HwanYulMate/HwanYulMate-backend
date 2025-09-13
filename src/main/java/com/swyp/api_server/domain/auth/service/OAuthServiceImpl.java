@@ -47,120 +47,22 @@ public class OAuthServiceImpl implements OAuthService {
         throw new UnsupportedOperationException("OAuth 코드 플로우는 아직 구현되지 않았습니다.");
     }
 
-    /**
-     * 소셜 로그인 처리 (액세스 토큰 기반)
-     * @param provider OAuth 제공자 (google, apple)
-     * @param accessToken OAuth 제공자에서 발급받은 액세스 토큰
-     * @return JWT 토큰 (accessToken, refreshToken)
-     * @throws RuntimeException 소셜 로그인 처리 실패 시
-     */
-    @Override
-    public TokenResponseDto processSocialLogin(String provider, String accessToken) {
-        try {
-            // 1. OAuth 제공자 API를 통해 사용자 정보 조회
-            UserInfo userInfo = getUserInfo(provider, accessToken);
-            // 2. DB에서 사용자 조회 또는 신규 사용자 등록
-            User user = findOrCreateUser(userInfo, provider);
-            
-            // 3. JWT 토큰 생성
-            String jwtAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), user.getRole());
-            String jwtRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
-            
-            return new TokenResponseDto(jwtAccessToken, jwtRefreshToken);
-        } catch (CustomException e) {
-            throw e;  // CustomException은 그대로 전파
-        } catch (Exception e) {
-            log.error("소셜 로그인 처리 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
-            throw new CustomException(ErrorCode.OAUTH_LOGIN_FAILED, e.getMessage(), e);
-        }
-    }
+
 
     /**
-     * OAuth 제공자 API로부터 사용자 정보 조회
-     * @param provider OAuth 제공자 (google, apple)
-     * @param accessToken OAuth 액세스 토큰
-     * @return 사용자 기본 정보 (이메일, 이름)
-     * @throws IOException API 호출 실패 시
-     */
-    private UserInfo getUserInfo(String provider, String accessToken) {
-        // OAuth 제공자별 사용자 정보 API URL 결정
-        String url = switch (provider.toLowerCase()) {
-            case "google" -> "https://www.googleapis.com/oauth2/v2/userinfo";
-            case "apple" -> "https://appleid.apple.com/auth/userinfo";
-            default -> throw new CustomException(ErrorCode.OAUTH_PROVIDER_NOT_SUPPORTED, "제공자: " + provider);
-        };
-
-        // OAuth 제공자 API에 사용자 정보 요청
-        Map<String, String> headers = Map.of(
-            "Authorization", "Bearer " + accessToken
-        );
-
-        try {
-            JsonNode jsonNode = httpClient.getJson(url, headers);
-
-            // 제공자별 JSON 구조에 맞옶 사용자 정보 파싱
-            return switch (provider.toLowerCase()) {
-                case "google" -> UserInfo.builder()
-                        .email(jsonNode.get("email").asText())     // 구글 이메일
-                        .name(jsonNode.get("name").asText())       // 구글 닉네임
-                        .build();
-                case "apple" -> UserInfo.builder()
-                        .email(jsonNode.get("email").asText())     // 애플 ID 이메일
-                        .name(jsonNode.has("name") ? jsonNode.get("name").asText() : "Apple User")  // 애플은 이름 제공 안할 수 있음
-                        .build();
-                default -> throw new CustomException(ErrorCode.OAUTH_PROVIDER_NOT_SUPPORTED, "제공자: " + provider);
-            };
-        } catch (Exception e) {
-            log.error("OAuth 사용자 정보 조회 실패: provider={}, error={}", provider, e.getMessage(), e);
-            throw new CustomException(ErrorCode.OAUTH_USER_INFO_FAILED, 
-                "사용자 정보 조회 실패: " + provider + " - " + e.getMessage());
-        }
-    }
-
-    /**
-     * 소셜 로그인 사용자 조회 또는 신규 등록
-     * @param userInfo OAuth 제공자에서 받은 사용자 정보
-     * @param provider OAuth 제공자명
-     * @return 데이터베이스에 저장된 User 엔티티
-     */
-    private User findOrCreateUser(UserInfo userInfo, String provider) {
-        // 이메일 형식 검증
-        validator.validateEmailFormat(userInfo.getEmail());
-        
-        // 기존 사용자 조회 (이메일 기반)
-        Optional<User> existingUser = userRepository.findByEmail(userInfo.getEmail());
-        
-        if (existingUser.isPresent()) {
-            return existingUser.get();  // 기존 사용자 반환
-        }
-
-        // 신규 사용자 등록
-        User newUser = User.builder()
-                .email(userInfo.getEmail())           // 소셜 로그인 이메일
-                .userName(userInfo.getName())         // 소셜 로그인 닉네임
-                .provider(provider)                   // OAuth 제공자 (google, apple)
-                .role("ROLE_USER")                    // 기본 사용자 권한
-                .password("")                         // 소셜 로그인 사용자는 비밀번호 없음
-                .createdAt(LocalDateTime.now())       // 계정 생성 시간
-                .build();
-
-        return userRepository.save(newUser);          // 데이터베이스에 저장
-    }
-
-    /**
-     * 소셜 로그인 처리 V2 (개선된 버전 - Apple 재로그인 지원)
+     * 소셜 로그인 처리 (Apple 재로그인 지원)
      * @param provider OAuth 제공자 (google, apple)
      * @param requestDto OAuth 로그인 요청 데이터 (accessToken, name, email)
      * @return OAuth 로그인 응답 (JWT 토큰 + 사용자 정보)
      */
     @Override
-    public OAuthLoginResponseDto processSocialLoginV2(String provider, OAuthLoginRequestDto requestDto) {
+    public OAuthLoginResponseDto processSocialLogin(String provider, OAuthLoginRequestDto requestDto) {
         try {
             // 1. OAuth 제공자 API를 통해 사용자 정보 조회
-            UserInfo userInfo = getUserInfoV2(provider, requestDto);
+            UserInfo userInfo = getUserInfo(provider, requestDto);
             
             // 2. DB에서 사용자 조회 또는 신규 사용자 등록
-            UserResult userResult = findOrCreateUserV2(userInfo, provider);
+            UserResult userResult = findOrCreateUser(userInfo, provider);
             User user = userResult.getUser();
             
             // 3. JWT 토큰 생성
@@ -185,16 +87,16 @@ public class OAuthServiceImpl implements OAuthService {
         } catch (CustomException e) {
             throw e;  // CustomException은 그대로 전파
         } catch (Exception e) {
-            log.error("소셜 로그인 V2 처리 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            log.error("소셜 로그인 처리 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
             throw new CustomException(ErrorCode.OAUTH_LOGIN_FAILED, e.getMessage(), e);
         }
     }
 
     /**
-     * OAuth 제공자 API로부터 사용자 정보 조회 V2 (개선된 버전)
+     * OAuth 제공자 API로부터 사용자 정보 조회 (Apple 재로그인 지원)
      * - Apple 재로그인 시 request에서 받은 name, email 사용
      */
-    private UserInfo getUserInfoV2(String provider, OAuthLoginRequestDto requestDto) {
+    private UserInfo getUserInfo(String provider, OAuthLoginRequestDto requestDto) {
         // Apple의 경우 재로그인 시에는 API에서 name, email을 제공하지 않으므로
         // request에서 받은 정보를 우선 사용
         if ("apple".equalsIgnoreCase(provider)) {
@@ -269,9 +171,9 @@ public class OAuthServiceImpl implements OAuthService {
     }
 
     /**
-     * 소셜 로그인 사용자 조회 또는 신규 등록 V2
+     * 소셜 로그인 사용자 조회 또는 신규 등록 (Apple 재로그인 지원)
      */
-    private UserResult findOrCreateUserV2(UserInfo userInfo, String provider) {
+    private UserResult findOrCreateUser(UserInfo userInfo, String provider) {
         // Apple 재로그인의 경우 providerId로만 조회
         if ("apple".equalsIgnoreCase(provider) && userInfo.getEmail() == null) {
             Optional<User> existingUser = userRepository.findByProviderAndProviderId(provider.toUpperCase(), userInfo.getProviderId());

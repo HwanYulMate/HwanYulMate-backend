@@ -70,57 +70,16 @@ public class OAuthController {
     }
 
     /**
-     * 소셜 로그인 처리 (Access Token 기반)
-     * - 모바일 앱에서 OAuth 제공자로부터 직접 받은 액세스 토큰을 사용
-     * @param provider OAuth 제공자 (google, apple)
-     * @param accessToken OAuth 제공자에서 발급받은 액세스 토큰
-     * @return JWT 토큰 또는 오류 메시지
-     */
-    @Operation(summary = "소셜 로그인", 
-        description = "OAuth 액세스 토큰을 사용하여 소셜 로그인을 처리합니다. 모바일 앱에서 주로 사용됩니다.")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200", 
-            description = "소셜 로그인 성공",
-            content = @Content(schema = @Schema(implementation = TokenResponseDto.class),
-                examples = @ExampleObject(name = "성공 응답", 
-                    value = "{\"accessToken\": \"eyJ0eXAiOiJKV1QiLi4.\", \"refreshToken\": \"eyJ0eXAiOiJKV1QiLi4.\", \"tokenType\": \"Bearer\"}"))
-        ),
-        @ApiResponse(
-            responseCode = "400", 
-            description = "소셜 로그인 실패 (잘못된 액세스 토큰, 지원하지 않는 제공자 등)",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401", 
-            description = "인증 실패 (만료된 또는 잘못된 액세스 토큰)",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "500", 
-            description = "서버에서 예상치 못한 오류가 발생했습니다",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-        )
-    })
-    @PostMapping("/{provider}")
-    public ResponseEntity<?> socialLogin(
-        @Parameter(description = "OAuth 제공자", example = "google") @PathVariable String provider,
-        @Parameter(description = "OAuth 제공자에서 발급받은 액세스 토큰", example = "ya29.a0AfH6SMC...") @RequestParam String accessToken) {
-        // CustomException으로 예외 처리됨 - GlobalExceptionHandler에서 일괄 처리
-        TokenResponseDto tokenResponse = oAuthService.processSocialLogin(provider, accessToken);
-        return ResponseEntity.ok(tokenResponse);
-    }
-
-    /**
-     * 소셜 로그인 V2 - Apple 재로그인 지원 개선
+     * 소셜 로그인 (Apple 재로그인 지원)
      * - Apple 최초 로그인 시 name, email 정보 저장
      * - Apple 재로그인 시 서버에서 저장된 사용자 정보 반환
+     * - Google은 항상 API에서 사용자 정보 조회
      * @param provider OAuth 제공자 (google, apple)
      * @param requestDto OAuth 로그인 요청 데이터
      * @return OAuth 로그인 응답 (JWT 토큰 + 사용자 정보)
      */
-    @Operation(summary = "소셜 로그인 V2 (Apple 재로그인 지원)", 
-        description = "Apple 재로그인 문제를 해결한 개선된 소셜 로그인 API입니다. " +
+    @Operation(summary = "소셜 로그인 (Apple 재로그인 지원)", 
+        description = "Apple 재로그인 문제를 해결한 소셜 로그인 API입니다. " +
                      "Apple 최초 로그인 시에는 name, email을 함께 전송하고, " +
                      "재로그인 시에는 accessToken만 전송하면 서버에서 저장된 사용자 정보를 반환합니다.")
     @ApiResponses({
@@ -164,8 +123,8 @@ public class OAuthController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PostMapping("/v2/{provider}")
-    public ResponseEntity<OAuthLoginResponseDto> socialLoginV2(
+    @PostMapping("/{provider}")
+    public ResponseEntity<OAuthLoginResponseDto> socialLogin(
         @Parameter(description = "OAuth 제공자", example = "apple") @PathVariable String provider,
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "OAuth 로그인 요청 데이터",
@@ -198,7 +157,7 @@ public class OAuthController {
             )
         ) @RequestBody OAuthLoginRequestDto requestDto) {
         
-        OAuthLoginResponseDto response = oAuthService.processSocialLoginV2(provider, requestDto);
+        OAuthLoginResponseDto response = oAuthService.processSocialLogin(provider, requestDto);
         return ResponseEntity.ok(response);
     }
 }
