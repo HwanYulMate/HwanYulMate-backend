@@ -13,6 +13,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
     
+    // OAuth 소셜 로그인 관련 쿼리
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
+    
     // FCM 토큰 관련 쿼리
     List<User> findByFcmTokenIsNotNull();
     List<User> findByFcmToken(String fcmToken);
