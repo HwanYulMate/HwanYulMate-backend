@@ -154,7 +154,7 @@ public class ExchangeRateStorageService {
         try {
             return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
         } catch (IllegalArgumentException e) {
-            return "/images/flags/default.svg";
+            return "/images/flags/default.png";
         }
     }
 }

@@ -248,7 +248,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             return com.swyp.api_server.domain.rate.ExchangeList.ExchangeType
                 .valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
         } catch (IllegalArgumentException e) {
-            return "/images/flags/default.svg"; // 기본 이미지 반환
+            return "/images/flags/default.png"; // 기본 이미지 반환
         }
     }
 }

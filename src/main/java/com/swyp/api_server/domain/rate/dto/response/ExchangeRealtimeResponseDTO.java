@@ -20,7 +20,7 @@ public class ExchangeRealtimeResponseDTO {
     @Schema(description = "통화 이름", example = "미국 달러")
     private String currencyName;
 
-    @Schema(description = "국기 이미지 URL", example = "/images/flags/us.svg")
+    @Schema(description = "국기 이미지 URL", example = "/images/flags/us.png")
     private String flagImageUrl;
 
     @Schema(description = "현재 환율", example = "1385.20")

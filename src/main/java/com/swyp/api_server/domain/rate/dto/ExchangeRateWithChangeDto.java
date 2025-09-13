@@ -30,7 +30,7 @@ public class ExchangeRateWithChangeDto {
     private String currencyName;
     
     @JsonProperty("flag_image_url")
-    @Schema(description = "국기 이미지 URL", example = "/images/flags/us.svg")
+    @Schema(description = "국기 이미지 URL", example = "/images/flags/us.png")
     private String flagImageUrl;
     
     @JsonProperty("exchange_rate")
@@ -112,7 +112,7 @@ public class ExchangeRateWithChangeDto {
         try {
             return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
         } catch (IllegalArgumentException e) {
-            return "/images/flags/default.svg"; // 기본 이미지 반환
+            return "/images/flags/default.png"; // 기본 이미지 반환
         }
     }
 }

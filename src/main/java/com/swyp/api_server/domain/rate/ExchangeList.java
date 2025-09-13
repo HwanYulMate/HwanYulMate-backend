@@ -16,20 +16,20 @@ public enum ExchangeList {
      * 필요에 따라 값을 추가하세요 (예: 환율 코드 또는 거래소 식별자)
      */
     public enum ExchangeType {
-        USD("USD", "미국 달러", "/images/flags/us.svg"),
-        JPY("JPY", "일본 엔", "/images/flags/jp.svg"),
-        EUR("EUR", "유럽 유로", "/images/flags/eu.svg"),
-        CNY("CNY", "중국 위안", "/images/flags/cn.svg"),
-        HKD("HKD", "홍콩 달러", "/images/flags/hk.svg"),
-        THB("THB", "태국 바트", "/images/flags/th.svg"),
-        SGD("SGD", "싱가폴 달러", "/images/flags/sg.svg"),
-        IDR("IDR", "인도네시아 루피아", "/images/flags/id.svg"),
-        MYR("MYR", "말레이시아 링깃", "/images/flags/my.svg"),
-        GBP("GBP", "영국 파운드", "/images/flags/gb.svg"),
-        CAD("CAD", "캐나다 달러", "/images/flags/ca.svg"),
-        AUD("AUD", "호주 달러", "/images/flags/au.svg"),
-        NZD("NZD", "뉴질랜드 달러", "/images/flags/nz.svg"),
-        CHF("CHF", "스위스 프랑", "/images/flags/ch.svg");
+        USD("USD", "미국 달러", "/images/flags/us.png"),
+        JPY("JPY", "일본 엔", "/images/flags/jp.png"),
+        EUR("EUR", "유럽 유로", "/images/flags/eu.png"),
+        CNY("CNY", "중국 위안", "/images/flags/cn.png"),
+        HKD("HKD", "홍콩 달러", "/images/flags/hk.png"),
+        THB("THB", "태국 바트", "/images/flags/th.png"),
+        SGD("SGD", "싱가폴 달러", "/images/flags/sg.png"),
+        IDR("IDR", "인도네시아 루피아", "/images/flags/id.png"),
+        MYR("MYR", "말레이시아 링깃", "/images/flags/my.png"),
+        GBP("GBP", "영국 파운드", "/images/flags/gb.png"),
+        CAD("CAD", "캐나다 달러", "/images/flags/ca.png"),
+        AUD("AUD", "호주 달러", "/images/flags/au.png"),
+        NZD("NZD", "뉴질랜드 달러", "/images/flags/nz.png"),
+        CHF("CHF", "스위스 프랑", "/images/flags/ch.png");
 
 
         private final String code;

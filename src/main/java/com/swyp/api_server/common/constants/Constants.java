@@ -113,9 +113,9 @@ public final class Constants {
      * 이미지 관련 상수
      */
     public static final class Image {
-        public static final String DEFAULT_FLAG_IMAGE = "/images/flags/default.svg";
+        public static final String DEFAULT_FLAG_IMAGE = "/images/flags/default.png";
         public static final String FLAG_IMAGE_PATH = "/images/flags/";
-        public static final String FLAG_IMAGE_EXTENSION = ".svg";
+        public static final String FLAG_IMAGE_EXTENSION = ".png";
         
         private Image() {}
     }
