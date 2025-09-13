@@ -70,6 +70,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/exchange/news/**").permitAll()
                         // 피드백 유형 조회는 공개
                         .requestMatchers("/api/feedback/types").permitAll()
+                        // 정적 리소스 (이미지 등) 접근 허용
+                        .requestMatchers("/images/**").permitAll()
                         // Swagger UI 문서화 접근 허용
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         // 개인 설정 API는 인증 필요 (/api/auth/**, /api/alert/**)
