@@ -40,4 +40,9 @@ public interface ExchangeRateService {
      * @return 과거 환율 데이터
      */
     List<ExchangeChartResponseDTO> getHistoricalExchangeRate(String currencyCode, int days);
+    
+    /**
+     * 환율 데이터 새로고침 (스케줄러용)
+     */
+    void refreshExchangeRates();
 }

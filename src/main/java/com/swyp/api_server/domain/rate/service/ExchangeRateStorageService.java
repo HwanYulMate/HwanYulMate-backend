@@ -2,6 +2,7 @@ package com.swyp.api_server.domain.rate.service;
 
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResponseDTO;
 import com.swyp.api_server.domain.rate.repository.ExchangeRateRepository;
+import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.entity.ExchangeRate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -140,8 +141,20 @@ public class ExchangeRateStorageService {
         return ExchangeResponseDTO.builder()
                 .currencyCode(entity.getCurrencyCode())
                 .currencyName(entity.getCurrencyName())
+                .flagImageUrl(getFlagImageUrl(entity.getCurrencyCode()))
                 .exchangeRate(entity.getExchangeRate())
                 .baseDate(entity.getBaseDate())
                 .build();
+    }
+    
+    /**
+     * 통화 코드에 해당하는 국기 이미지 URL 조회
+     */
+    private String getFlagImageUrl(String currencyCode) {
+        try {
+            return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
+        } catch (IllegalArgumentException e) {
+            return "/images/flags/default.svg";
+        }
     }
 }

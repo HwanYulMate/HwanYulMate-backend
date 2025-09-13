@@ -445,4 +445,21 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         // 빈 배열은 여기서 예외를 던지지 않음 - 호출하는 곳에서 fallback 처리
     }
     
+    /**
+     * 환율 데이터 새로고침 (스케줄러용)
+     * - 기존 메소드 호출하여 캐시 갱신 유도
+     */
+    @Override
+    public void refreshExchangeRates() {
+        log.info("환율 데이터 새로고침 시작");
+        try {
+            // 기존 캐시된 메소드를 호출하여 최신 데이터 가져오기
+            getAllExchangeRates();
+            log.info("환율 데이터 새로고침 완료");
+        } catch (Exception e) {
+            log.error("환율 데이터 새로고침 실패", e);
+            throw e;
+        }
+    }
+    
 }
