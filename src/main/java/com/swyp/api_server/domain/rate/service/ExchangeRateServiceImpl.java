@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -314,42 +315,65 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
             List<ExchangeChartResponseDTO> chartData = new ArrayList<>();
             LocalDate endDate = LocalDate.now();
+            ExchangeChartResponseDTO lastWeekdayData = null; // 직전 평일 데이터 저장용
             
-            // 최근 N일간의 환율 데이터 수집
+            // 최근 N일간의 환율 데이터 수집 (주말 데이터 복제 포함)
             for (int i = days - 1; i >= 0; i--) {
                 LocalDate targetDate = endDate.minusDays(i);
                 String searchDate = targetDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+                DayOfWeek dayOfWeek = targetDate.getDayOfWeek();
                 
-                try {
-                    JsonNode jsonData = tryApiCall(searchDate);
-                    
-                    JsonNode currencyData = findCurrencyInResponse(jsonData, mappedCurrencyCode);
-                    if (currencyData != null) {
-                        String dealBasRStr = currencyData.get("deal_bas_r").asText().replace(",", "");
+                ExchangeChartResponseDTO dayData = null;
+                
+                // 평일인 경우 실제 API 호출
+                if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
+                    try {
+                        JsonNode jsonData = tryApiCall(searchDate);
                         
-                        if (!dealBasRStr.isEmpty() && !dealBasRStr.equals("0")) {
-                            BigDecimal exchangeRate = calculateActualExchangeRate(dealBasRStr, mappedCurrencyCode);
+                        JsonNode currencyData = findCurrencyInResponse(jsonData, mappedCurrencyCode);
+                        if (currencyData != null) {
+                            String dealBasRStr = currencyData.get("deal_bas_r").asText().replace(",", "");
                             
-                            ExchangeChartResponseDTO dto = ExchangeChartResponseDTO.builder()
-                                    .date(searchDate)
-                                    .rate(exchangeRate)
-                                    .timestamp(targetDate.atStartOfDay())
-                                    .build();
-                            
-                            chartData.add(dto);
+                            if (!dealBasRStr.isEmpty() && !dealBasRStr.equals("0")) {
+                                BigDecimal exchangeRate = calculateActualExchangeRate(dealBasRStr, mappedCurrencyCode);
+                                
+                                dayData = ExchangeChartResponseDTO.builder()
+                                        .date(searchDate)
+                                        .rate(exchangeRate)
+                                        .timestamp(targetDate.atStartOfDay())
+                                        .build();
+                                
+                                lastWeekdayData = dayData; // 직전 평일 데이터 저장
+                            }
                         }
+                        
+                        // API 호출 간격 조절 (Rate Limiting 방지)
+                        Thread.sleep(Constants.Api.API_RATE_LIMIT_DELAY_MS);
+                        
+                    } catch (Exception e) {
+                        log.warn("{}일자 환율 데이터 조회 실패: {}", searchDate, e.getMessage());
+                        // 개별 날짜 실패는 전체 실패로 이어지지 않도록 계속 진행
                     }
+                } 
+                // 주말인 경우 직전 평일 데이터 복제
+                else if (lastWeekdayData != null) {
+                    dayData = ExchangeChartResponseDTO.builder()
+                            .date(searchDate)
+                            .rate(lastWeekdayData.getRate()) // 직전 평일 환율 복제
+                            .timestamp(targetDate.atStartOfDay())
+                            .build();
                     
-                    // API 호출 간격 조절 (Rate Limiting 방지)
-                    Thread.sleep(Constants.Api.API_RATE_LIMIT_DELAY_MS);
-                    
-                } catch (Exception e) {
-                    log.warn("{}일자 환율 데이터 조회 실패: {}", searchDate, e.getMessage());
-                    // 개별 날짜 실패는 전체 실패로 이어지지 않도록 계속 진행
+                    log.debug("주말 데이터 복제: {} -> {}", lastWeekdayData.getDate(), searchDate);
+                }
+                
+                // 데이터가 있으면 추가
+                if (dayData != null) {
+                    chartData.add(dayData);
                 }
             }
             
-            log.info("과거 환율 데이터 조회 완료: {} ({} days)", currencyCode, chartData.size());
+            log.info("과거 환율 데이터 조회 완료: {} ({} days, {} entries)", 
+                    currencyCode, days, chartData.size());
             return chartData;
             
         } catch (CustomException e) {
