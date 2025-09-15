@@ -38,8 +38,9 @@ public class ExchangeResultController {
      * 은행별 환전 예상 금액 비교
      */
     @Operation(
-        summary = "은행별 환전 예상 금액 비교",
-        description = "실시간 환율 정보를 기반으로 여러 은행의 환전 예상 금액을 비교합니다. 우대율과 수수료가 모두 반영됩니다."
+        summary = "은행별 환전 예상 금액 비교 (DB 기반)",
+        description = "DB에 저장된 최신 환율 정보를 기반으로 여러 은행의 환전 예상 금액을 비교합니다. " +
+                      "환율 데이터는 스케줄러에 의해 수집되어 빠른 응답속도를 제공하며, 우대율과 수수료가 모두 반영됩니다."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -75,8 +76,9 @@ public class ExchangeResultController {
      * 간편 환전 계산 (GET 방식)
      */
     @Operation(
-        summary = "간편 환전 계산",
-        description = "GET 방식으로 간단하게 환전 예상 금액을 계산합니다. 기본값: 외화→원화 방향"
+        summary = "간편 환전 계산 (DB 기반)",
+        description = "GET 방식으로 간단하게 환전 예상 금액을 DB 기반으로 계산합니다. " +
+                      "스케줄러가 수집한 최신 환율 정보를 사용하여 빠른 응답을 제공합니다. 기본값: 외화→원화 방향"
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -129,8 +131,9 @@ public class ExchangeResultController {
      * 특정 은행의 환전 계산
      */
     @Operation(
-        summary = "특정 은행 환전 계산",
-        description = "지정한 은행의 환전 예상 금액을 계산합니다."
+        summary = "특정 은행 환전 계산 (DB 기반)",
+        description = "지정한 은행의 환전 예상 금액을 DB 기반으로 계산합니다. " +
+                      "스케줄러가 수집한 최신 환율 정보를 사용하여 빠른 계산 결과를 제공합니다."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -174,8 +177,9 @@ public class ExchangeResultController {
      * 캐시 우회 환전 계산 (디버깅용)
      */
     @Operation(
-        summary = "캐시 우회 환전 계산",
-        description = "디버깅용 API로 캐시를 우회하여 환전 예상 금액을 실시간으로 계산합니다."
+        summary = "캐시 우회 환전 계산 (DB 기반)",
+        description = "디버깅용 API로 캐시를 우회하여 DB에서 직접 환율을 조회해 환전 예상 금액을 계산합니다. " +
+                      "외부 API 호출 없이 DB 데이터만 사용하여 계산합니다."
     )
     @ApiResponses(value = {
         @ApiResponse(

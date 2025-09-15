@@ -180,20 +180,22 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
-     * 현재 환율 조회
+     * 현재 환율 조회 - DB 전용 (API 호출 없음)
+     * 스케줄러가 수집한 캐시된 데이터만 사용
      */
     private BigDecimal getCurrentExchangeRate(String currencyCode) {
         try {
-            // 캐시 우회하고 직접 API 호출
-            ExchangeRateServiceImpl exchangeService = (ExchangeRateServiceImpl) exchangeRateService;
-            List<ExchangeResponseDTO> rates = exchangeService.getAllExchangeRatesWithoutCache();
+            log.info("계산기용 환율 조회 (캐시/DB): {}", currencyCode);
+            
+            // 캐시된 환율 데이터 사용 (API 호출 없음)
+            List<ExchangeResponseDTO> rates = exchangeRateService.getAllExchangeRates();
             
             return rates.stream()
                 .filter(rate -> rate.getCurrencyCode().equals(currencyCode))
                 .map(rate -> rate.getExchangeRate())
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, 
-                    "환율 정보를 찾을 수 없습니다: " + currencyCode));
+                    "환율 정보를 찾을 수 없습니다. 스케줄러 동작을 확인해주세요: " + currencyCode));
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {

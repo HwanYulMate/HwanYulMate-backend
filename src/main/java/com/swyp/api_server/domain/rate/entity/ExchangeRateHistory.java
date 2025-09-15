@@ -12,6 +12,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 환율 히스토리 엔티티
@@ -74,13 +75,33 @@ public class ExchangeRateHistory {
 
     /**
      * ExchangeRate 엔티티로부터 히스토리 생성
+     * ExchangeRate의 String baseDate(yyyyMMdd)를 LocalDate로 변환
      */
     public static ExchangeRateHistory from(ExchangeRate exchangeRate, LocalDate baseDate) {
+        // baseDate 매개변수가 null인 경우 ExchangeRate의 baseDate를 파싱
+        LocalDate actualBaseDate = baseDate;
+        if (actualBaseDate == null && exchangeRate.getBaseDate() != null) {
+            try {
+                actualBaseDate = LocalDate.parse(exchangeRate.getBaseDate(), 
+                    DateTimeFormatter.ofPattern("yyyyMMdd"));
+            } catch (Exception e) {
+                // 파싱 실패 시 현재 날짜 사용
+                actualBaseDate = LocalDate.now();
+            }
+        }
+        
         return ExchangeRateHistory.builder()
                 .currencyCode(exchangeRate.getCurrencyCode())
                 .currencyName(exchangeRate.getCurrencyName())
                 .exchangeRate(exchangeRate.getExchangeRate())
-                .baseDate(baseDate)
+                .baseDate(actualBaseDate)
                 .build();
+    }
+    
+    /**
+     * ExchangeRate 엔티티로부터 히스토리 생성 (baseDate 자동 변환)
+     */
+    public static ExchangeRateHistory from(ExchangeRate exchangeRate) {
+        return from(exchangeRate, null);
     }
 }

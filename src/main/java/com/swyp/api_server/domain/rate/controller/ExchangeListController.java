@@ -36,8 +36,10 @@ public class ExchangeListController {
      * @return 14개국 환율 정보 리스트
      */
     @GetMapping("/exchangeList")
-    @Operation(summary = "실시간 환율 목록 조회 (변동률 포함)", 
-               description = "14개국 통화의 실시간 환율 정보와 전일 대비 변동률을 목록 형태로 조회합니다. 변동 금액, 변동 퍼센트, 변동 방향 정보가 포함됩니다.")
+    @Operation(summary = "실시간 환율 목록 조회 (DB 기반, 변동률 포함)", 
+               description = "14개국 통화의 실시간 환율 정보와 전일 대비 변동률을 DB에서 조회합니다. " +
+                          "데이터는 스케줄러에 의해 한국수출입은행 API에서 수집되어 DB에 저장됩니다 (평일 오전 9:30, 오후 3:00). " +
+                          "변동 금액, 변동 퍼센트, 변동 방향 정보가 포함되며, 빠른 응답속도를 보장합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -46,7 +48,7 @@ public class ExchangeListController {
         ),
         @ApiResponse(
             responseCode = "503", 
-            description = "환율 API 서비스가 일시적으로 이용할 수 없습니다",
+            description = "환율 데이터베이스 서비스가 일시적으로 이용할 수 없습니다",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         ),
         @ApiResponse(
