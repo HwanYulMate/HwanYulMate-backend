@@ -3,7 +3,6 @@ package com.swyp.api_server.domain.auth.controller;
 import com.swyp.api_server.domain.auth.dto.OAuthLoginRequestDto;
 import com.swyp.api_server.domain.auth.dto.OAuthLoginResponseDto;
 import com.swyp.api_server.domain.auth.service.OAuthService;
-import com.swyp.api_server.domain.user.dto.TokenResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,44 +29,6 @@ public class OAuthController {
 
     private final OAuthService oAuthService;
 
-    /**
-     * OAuth 콜백 처리 (Authorization Code Flow)
-     * - OAuth 제공자에서 리다이렉트되는 콜백 URL
-     * @param provider OAuth 제공자 (google, apple)
-     * @param code OAuth 인증 코드
-     * @return JWT 토큰 또는 오류 메시지
-     */
-    @Operation(summary = "OAuth 콜백 처리", description = "OAuth Authorization Code Flow를 통한 소셜 로그인 콜백 처리 (현재 미구현)")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200", 
-            description = "로그인 성공",
-            content = @Content(schema = @Schema(implementation = TokenResponseDto.class))
-        ),
-        @ApiResponse(
-            responseCode = "400", 
-            description = "OAuth 로그인 실패 (잘못된 코드, 제공자 오류 등)",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "501", 
-            description = "미구현 기능",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "500", 
-            description = "서버에서 예상치 못한 오류가 발생했습니다",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-        )
-    })
-    @GetMapping("/callback/{provider}")
-    public ResponseEntity<?> oauthCallback(
-        @Parameter(description = "OAuth 제공자", example = "google") @PathVariable String provider,
-        @Parameter(description = "OAuth 인증 코드") @RequestParam String code) {
-        // CustomException으로 예외 처리됨 - GlobalExceptionHandler에서 일괄 처리
-        TokenResponseDto tokenResponse = oAuthService.processOAuthLogin(provider, code);
-        return ResponseEntity.ok(tokenResponse);
-    }
 
     /**
      * 소셜 로그인 (Apple 재로그인 지원)

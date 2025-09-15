@@ -7,7 +7,6 @@ import com.swyp.api_server.common.validator.CommonValidator;
 import com.swyp.api_server.config.security.JwtTokenProvider;
 import com.swyp.api_server.domain.auth.dto.OAuthLoginRequestDto;
 import com.swyp.api_server.domain.auth.dto.OAuthLoginResponseDto;
-import com.swyp.api_server.domain.user.dto.TokenResponseDto;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
@@ -35,21 +34,6 @@ public class OAuthServiceImpl implements OAuthService {
     private final JwtTokenProvider jwtTokenProvider;    // JWT 토큰 생성기
     private final CommonHttpClient httpClient;          // HTTP 클라이언트
     private final CommonValidator validator;            // 공통 검증기
-
-    /**
-     * OAuth Authorization Code Flow 처리 (TODO: 향후 구현 예정)
-     * @param provider OAuth 제공자
-     * @param code OAuth 인증 코드
-     * @return JWT 토큰
-     * @throws UnsupportedOperationException 아직 구현되지 않음
-     */
-    @Override
-    public TokenResponseDto processOAuthLogin(String provider, String code) {
-        // OAuth 인증 코드 플로우는 복잡하므로 일단 기본 구조만 제공
-        throw new UnsupportedOperationException("OAuth 코드 플로우는 아직 구현되지 않았습니다.");
-    }
-
-
 
     /**
      * 소셜 로그인 처리 (Apple 재로그인 지원)
