@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +26,7 @@ import java.util.List;
  * - 특정 통화의 상세 환율 정보 제공
  * - 실시간 환율, 차트 데이터, 과거 환율, 관련 뉴스 제공
  */
+@Slf4j
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -111,6 +113,12 @@ public class ExchangeDetailViewController {
             @RequestParam String currencyCode) {
         
         List<ExchangeChartResponseDTO> chartData = exchangeRateService.getExchangeChartData(currencyCode);
+        
+        // 차트 데이터가 없는 경우에도 200 응답하되, 로그에 상세 정보 기록
+        if (chartData.isEmpty()) {
+            log.warn("차트 데이터가 없습니다. 통화: {}, API 한도 초과 또는 DB 데이터 부족 상황일 수 있습니다.", currencyCode);
+        }
+        
         return ResponseEntity.ok(chartData);
     }
 

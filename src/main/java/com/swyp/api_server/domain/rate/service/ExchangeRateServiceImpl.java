@@ -8,6 +8,8 @@ import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeChartResponseDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeRealtimeResponseDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResponseDTO;
+import com.swyp.api_server.domain.rate.entity.ExchangeRateHistory;
+import com.swyp.api_server.domain.rate.repository.ExchangeRateHistoryRepository;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     
     private final CommonHttpClient httpClient;
     private final CommonValidator validator;
+    private final ExchangeRateHistoryRepository historyRepository;
     
     /**
      * 모든 통화의 실시간 환율 목록 조회
@@ -199,7 +202,11 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         log.debug("수출입은행 API 응답 내용: {}", responseData);
         
         // 수출입은행 API 에러 응답 처리 (빈 배열은 여기서 처리하지 않음)
-        handleKoreaEximApiResponse(responseData);
+        boolean isRateLimitExceeded = handleKoreaEximApiResponse(responseData);
+        if (isRateLimitExceeded) {
+            throw new CustomException(ErrorCode.EXCHANGE_RATE_API_LIMIT_EXCEEDED, 
+                "API 호출 한도 초과 - DB 데이터 사용 필요");
+        }
         
         return responseData;
     }
@@ -312,76 +319,153 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         try {
             validator.validateCurrencyCode(currencyCode);
             
-            String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
-            List<ExchangeChartResponseDTO> chartData = new ArrayList<>();
-            LocalDate endDate = LocalDate.now();
-            ExchangeChartResponseDTO lastWeekdayData = null; // 직전 평일 데이터 저장용
+            // API 호출 시도
+            List<ExchangeChartResponseDTO> apiData = getHistoricalDataFromApi(currencyCode, days);
             
-            // 최근 N일간의 환율 데이터 수집 (주말 데이터 복제 포함)
-            for (int i = days - 1; i >= 0; i--) {
-                LocalDate targetDate = endDate.minusDays(i);
-                String searchDate = targetDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-                DayOfWeek dayOfWeek = targetDate.getDayOfWeek();
-                
-                ExchangeChartResponseDTO dayData = null;
-                
-                // 평일인 경우 실제 API 호출
-                if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-                    try {
-                        JsonNode jsonData = tryApiCall(searchDate);
-                        
-                        JsonNode currencyData = findCurrencyInResponse(jsonData, mappedCurrencyCode);
-                        if (currencyData != null) {
-                            String dealBasRStr = currencyData.get("deal_bas_r").asText().replace(",", "");
-                            
-                            if (!dealBasRStr.isEmpty() && !dealBasRStr.equals("0")) {
-                                BigDecimal exchangeRate = calculateActualExchangeRate(dealBasRStr, mappedCurrencyCode);
-                                
-                                dayData = ExchangeChartResponseDTO.builder()
-                                        .date(searchDate)
-                                        .rate(exchangeRate)
-                                        .timestamp(targetDate.atStartOfDay())
-                                        .build();
-                                
-                                lastWeekdayData = dayData; // 직전 평일 데이터 저장
-                            }
-                        }
-                        
-                        // API 호출 간격 조절 (Rate Limiting 방지)
-                        Thread.sleep(Constants.Api.API_RATE_LIMIT_DELAY_MS);
-                        
-                    } catch (Exception e) {
-                        log.warn("{}일자 환율 데이터 조회 실패: {}", searchDate, e.getMessage());
-                        // 개별 날짜 실패는 전체 실패로 이어지지 않도록 계속 진행
-                    }
-                } 
-                // 주말인 경우 직전 평일 데이터 복제
-                else if (lastWeekdayData != null) {
-                    dayData = ExchangeChartResponseDTO.builder()
-                            .date(searchDate)
-                            .rate(lastWeekdayData.getRate()) // 직전 평일 환율 복제
-                            .timestamp(targetDate.atStartOfDay())
-                            .build();
-                    
-                    log.debug("주말 데이터 복제: {} -> {}", lastWeekdayData.getDate(), searchDate);
-                }
-                
-                // 데이터가 있으면 추가
-                if (dayData != null) {
-                    chartData.add(dayData);
-                }
+            // API 데이터가 충분하지 않거나 비어있는 경우 DB에서 가져오기
+            if (apiData.isEmpty()) {
+                log.info("API 데이터가 없어 DB에서 환율 히스토리 조회: {}", currencyCode);
+                return getHistoricalDataFromDatabase(currencyCode, days);
             }
             
-            log.info("과거 환율 데이터 조회 완료: {} ({} days, {} entries)", 
-                    currencyCode, days, chartData.size());
-            return chartData;
+            return apiData;
             
         } catch (CustomException e) {
+            if (e.getErrorCode() == ErrorCode.EXCHANGE_RATE_API_LIMIT_EXCEEDED) {
+                log.info("API 한도 초과로 DB에서 환율 히스토리 조회: {}", currencyCode);
+                return getHistoricalDataFromDatabase(currencyCode, days);
+            }
             throw e;
         } catch (Exception e) {
             log.error("과거 환율 조회 중 오류 발생: {}, {} days", currencyCode, days, e);
-            throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, 
-                "과거 환율 조회 실패: " + currencyCode, e);
+            log.info("오류 발생으로 DB에서 환율 히스토리 조회 시도: {}", currencyCode);
+            return getHistoricalDataFromDatabase(currencyCode, days);
+        }
+    }
+    
+    /**
+     * API로부터 환율 히스토리 데이터 조회
+     */
+    private List<ExchangeChartResponseDTO> getHistoricalDataFromApi(String currencyCode, int days) {
+        String mappedCurrencyCode = mapToKoreaEximCurrencyCode(currencyCode);
+        List<ExchangeChartResponseDTO> chartData = new ArrayList<>();
+        LocalDate endDate = LocalDate.now();
+        ExchangeChartResponseDTO lastWeekdayData = null; // 직전 평일 데이터 저장용
+        
+        // 최근 N일간의 환율 데이터 수집 (주말 데이터 복제 포함)
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate targetDate = endDate.minusDays(i);
+            String searchDate = targetDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            DayOfWeek dayOfWeek = targetDate.getDayOfWeek();
+            
+            ExchangeChartResponseDTO dayData = null;
+            
+            // 평일인 경우 실제 API 호출
+            if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
+                try {
+                    JsonNode jsonData = tryApiCall(searchDate);
+                    
+                    JsonNode currencyData = findCurrencyInResponse(jsonData, mappedCurrencyCode);
+                    if (currencyData != null) {
+                        String dealBasRStr = currencyData.get("deal_bas_r").asText().replace(",", "");
+                        
+                        if (!dealBasRStr.isEmpty() && !dealBasRStr.equals("0")) {
+                            BigDecimal exchangeRate = calculateActualExchangeRate(dealBasRStr, mappedCurrencyCode);
+                            
+                            dayData = ExchangeChartResponseDTO.builder()
+                                    .date(searchDate)
+                                    .rate(exchangeRate)
+                                    .timestamp(targetDate.atStartOfDay())
+                                    .build();
+                            
+                            lastWeekdayData = dayData; // 직전 평일 데이터 저장
+                        }
+                    }
+                    
+                    // API 호출 간격 조절 (Rate Limiting 방지)
+                    Thread.sleep(Constants.Api.API_RATE_LIMIT_DELAY_MS);
+                    
+                } catch (CustomException e) {
+                    if (e.getErrorCode() == ErrorCode.EXCHANGE_RATE_API_LIMIT_EXCEEDED) {
+                        throw e; // API 한도 초과는 상위로 전파
+                    }
+                    log.warn("{}일자 환율 데이터 조회 실패: {}", searchDate, e.getMessage());
+                } catch (Exception e) {
+                    log.warn("{}일자 환율 데이터 조회 실패: {}", searchDate, e.getMessage());
+                }
+            } 
+            // 주말인 경우 직전 평일 데이터 복제
+            else if (lastWeekdayData != null) {
+                dayData = ExchangeChartResponseDTO.builder()
+                        .date(searchDate)
+                        .rate(lastWeekdayData.getRate()) // 직전 평일 환율 복제
+                        .timestamp(targetDate.atStartOfDay())
+                        .build();
+                
+                log.debug("주말 데이터 복제: {} -> {}", lastWeekdayData.getDate(), searchDate);
+            }
+            
+            // 데이터가 있으면 추가
+            if (dayData != null) {
+                chartData.add(dayData);
+            }
+        }
+        
+        log.info("API 환율 데이터 조회 완료: {} ({} days, {} entries)", 
+                currencyCode, days, chartData.size());
+        return chartData;
+    }
+    
+    /**
+     * DB로부터 환율 히스토리 데이터 조회
+     */
+    private List<ExchangeChartResponseDTO> getHistoricalDataFromDatabase(String currencyCode, int days) {
+        try {
+            LocalDate endDate = LocalDate.now();
+            LocalDate startDate = endDate.minusDays(days - 1);
+            
+            List<ExchangeRateHistory> historyList = historyRepository.findByPeriod(currencyCode, startDate, endDate);
+            
+            List<ExchangeChartResponseDTO> chartData = historyList.stream()
+                    .map(history -> ExchangeChartResponseDTO.builder()
+                            .date(history.getBaseDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                            .rate(history.getExchangeRate())
+                            .timestamp(history.getBaseDate().atStartOfDay())
+                            .build())
+                    .toList();
+            
+            log.info("DB 환율 데이터 조회 완료: {} ({} days, {} entries)", 
+                    currencyCode, days, chartData.size());
+            
+            // DB에도 데이터가 없는 경우 최근 7일 데이터로 재시도
+            if (chartData.isEmpty() && days > 7) {
+                log.info("요청된 기간({} days)에 데이터가 없어 최근 7일 데이터로 재시도: {}", days, currencyCode);
+                LocalDate recentStartDate = endDate.minusDays(6);
+                List<ExchangeRateHistory> recentHistoryList = historyRepository.findByPeriod(currencyCode, recentStartDate, endDate);
+                
+                chartData = recentHistoryList.stream()
+                        .map(history -> ExchangeChartResponseDTO.builder()
+                                .date(history.getBaseDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                .rate(history.getExchangeRate())
+                                .timestamp(history.getBaseDate().atStartOfDay())
+                                .build())
+                        .toList();
+                        
+                if (!chartData.isEmpty()) {
+                    log.info("최근 7일 데이터 조회 성공: {} ({} entries)", currencyCode, chartData.size());
+                }
+            }
+            
+            // 여전히 데이터가 없는 경우
+            if (chartData.isEmpty()) {
+                log.warn("DB에서도 환율 데이터를 찾을 수 없습니다: {} ({} days)", currencyCode, days);
+            }
+            
+            return chartData;
+            
+        } catch (Exception e) {
+            log.error("DB에서 환율 히스토리 조회 실패: {}, {} days", currencyCode, days, e);
+            return new ArrayList<>(); // 빈 리스트 반환
         }
     }
     
@@ -446,8 +530,9 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     
     /**
      * 수출입은행 API 응답 에러 처리
+     * @return API 한도 초과 여부
      */
-    private void handleKoreaEximApiResponse(JsonNode responseData) {
+    private boolean handleKoreaEximApiResponse(JsonNode responseData) {
         // 배열 응답에서 개별 아이템의 result 체크 (에러 응답만 처리)
         if (responseData.isArray() && responseData.size() > 0) {
             JsonNode firstItem = responseData.get(0);
@@ -455,18 +540,27 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 int result = firstItem.get("result").asInt();
                 
                 switch (result) {
-                    case 1 -> log.debug("수출입은행 API 정상 응답");  // 성공
+                    case 1 -> {
+                        log.debug("수출입은행 API 정상 응답");  // 성공
+                        return false;
+                    }
                     case 2 -> throw new CustomException(ErrorCode.INVALID_REQUEST, 
                         "DATA 코드 오류 (" + Constants.Api.KOREA_EXIM_DATA_CODE + " 확인)");
                     case 3 -> throw new CustomException(ErrorCode.INVALID_REQUEST, 
                         "인증키 오류. 발급받은 인증키를 확인해주세요.");
-                    case 4 -> throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, 
-                        "일일 호출 한도(" + Constants.Api.KOREA_EXIM_DAILY_LIMIT + "회)를 초과했습니다.");
-                    default -> log.warn("알 수 없는 수출입은행 API 응답: {}", result);
+                    case 4 -> {
+                        log.warn("일일 호출 한도({})를 초과했습니다. DB 데이터로 폴백합니다.", Constants.Api.KOREA_EXIM_DAILY_LIMIT);
+                        return true; // 한도 초과
+                    }
+                    default -> {
+                        log.warn("알 수 없는 수출입은행 API 응답: {}", result);
+                        return false;
+                    }
                 }
             }
         }
         // 빈 배열은 여기서 예외를 던지지 않음 - 호출하는 곳에서 fallback 처리
+        return false;
     }
     
     /**
