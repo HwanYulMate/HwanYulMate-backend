@@ -1,6 +1,7 @@
 package com.swyp.api_server.domain.auth.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swyp.api_server.common.http.CommonHttpClient;
 import com.swyp.api_server.common.validator.CommonValidator;
 import com.swyp.api_server.config.security.JwtTokenProvider;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 
@@ -157,16 +159,50 @@ public class OAuthServiceImpl implements OAuthService {
 
     /**
      * Apple ID Token에서 providerId (sub) 추출
+     * JWT 토큰을 파싱하여 sub 필드 추출 (서명 검증 없이)
      */
     private String extractProviderIdFromToken(String accessToken) {
-        // 실제로는 JWT 파싱이 필요하지만, 여기서는 간단하게 처리
-        // 실제 구현 시에는 JWT 라이브러리를 사용해야 함
         try {
-            // TODO: JWT 토큰 파싱하여 sub 필드 추출
-            return "temp_provider_id_" + System.currentTimeMillis();
+            log.debug("Apple ID Token 파싱 시작: {}", accessToken.substring(0, Math.min(50, accessToken.length())) + "...");
+            
+            // JWT 토큰을 '.'으로 분리 (header.payload.signature)
+            String[] parts = accessToken.split("\\.");
+            if (parts.length != 3) {
+                throw new IllegalArgumentException("Invalid JWT format - expected 3 parts but got " + parts.length);
+            }
+            
+            // Payload 부분(두 번째 부분)을 Base64 디코딩
+            String payload = parts[1];
+            
+            // Base64 URL-safe 디코딩
+            byte[] decodedBytes = Base64.getUrlDecoder().decode(payload);
+            String decodedPayload = new String(decodedBytes);
+            
+            log.debug("Decoded payload: {}", decodedPayload);
+            
+            // JSON 파싱하여 sub 필드 추출
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode claims = mapper.readTree(decodedPayload);
+            
+            // sub 필드 추출 (Apple 사용자 고유 ID)
+            if (!claims.has("sub")) {
+                throw new IllegalArgumentException("sub field not found in JWT payload");
+            }
+            
+            String sub = claims.get("sub").asText();
+            if (sub == null || sub.isEmpty()) {
+                throw new IllegalArgumentException("sub field is empty");
+            }
+            
+            log.info("Apple ID Token 파싱 성공 - providerId: {}", sub);
+            return sub;
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Apple ID Token 형식 오류: {}", e.getMessage());
+            throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, "Apple ID Token 형식이 올바르지 않습니다: " + e.getMessage());
         } catch (Exception e) {
-            log.error("Apple ID Token 파싱 실패: {}", e.getMessage());
-            throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, "Apple ID Token 파싱 실패");
+            log.error("Apple ID Token 파싱 중 예상치 못한 오류: {}", e.getMessage(), e);
+            throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, "Apple ID Token 파싱 실패: " + e.getMessage());
         }
     }
 

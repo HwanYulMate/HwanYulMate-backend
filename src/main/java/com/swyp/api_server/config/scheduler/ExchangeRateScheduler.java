@@ -109,19 +109,28 @@ public class ExchangeRateScheduler {
     /**
      * 매일 오후 6시에 환율 히스토리 정리 (선택사항)
      * - 오래된 히스토리 데이터 정리
-     * - 90일 이상 된 데이터 삭제
+     * - 90일 이상 된 데이터 삭제 (DB 용량 관리)
      */
     @Scheduled(cron = "0 0 18 * * MON-FRI", zone = "Asia/Seoul")
     public void cleanupOldHistory() {
-        log.info("오래된 환율 히스토리 정리 시작");
+        log.info("========== 오래된 환율 히스토리 정리 시작 ==========");
         
         try {
-            // TODO: 90일 이상 된 히스토리 데이터 삭제 로직 구현
-            // historyService.deleteOldHistory(90);
-            log.info("✓ 환율 히스토리 정리 완료");
+            // 90일 이상 된 히스토리 데이터 삭제
+            int deletedCount = historyService.deleteOldHistory(90);
+            
+            if (deletedCount > 0) {
+                log.info("✓ 환율 히스토리 정리 완료: {} 건 삭제", deletedCount);
+            } else {
+                log.info("✓ 삭제할 오래된 데이터가 없어 히스토리 정리를 건너뜀");
+            }
+            
+            log.info("========== 환율 히스토리 정리 완료 ==========");
             
         } catch (Exception e) {
-            log.warn("환율 히스토리 정리 중 오류 발생: {}", e.getMessage());
+            log.error("환율 히스토리 정리 중 오류 발생", e);
+            // TODO: 알림 시스템 연동 (슬랙, 이메일 등)
+            // 히스토리 정리 실패 시 담당자에게 알림
         }
     }
 }

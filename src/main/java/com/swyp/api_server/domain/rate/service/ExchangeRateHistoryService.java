@@ -135,4 +135,45 @@ public class ExchangeRateHistoryService {
     public List<ExchangeRateHistory> getRecentHistory(String currencyCode, int days) {
         return historyRepository.findRecentHistoryByCurrency(currencyCode, days);
     }
+    
+    /**
+     * 90일 이상 된 오래된 환율 히스토리 데이터 삭제
+     * @param retentionDays 보관할 일수 (기본 90일)
+     * @return 삭제된 데이터 건수
+     */
+    @Transactional
+    public int deleteOldHistory(int retentionDays) {
+        LocalDate cutoffDate = LocalDate.now().minusDays(retentionDays);
+        
+        log.info("환율 히스토리 정리 시작: {}일 이전 데이터 삭제 (기준일: {})", retentionDays, cutoffDate);
+        
+        try {
+            // 삭제 전 카운트 조회
+            List<ExchangeRateHistory> oldHistories = historyRepository.findByBaseDateBefore(cutoffDate);
+            int deleteCount = oldHistories.size();
+            
+            if (deleteCount == 0) {
+                log.info("삭제할 오래된 히스토리 데이터가 없습니다.");
+                return 0;
+            }
+            
+            // 삭제 실행
+            historyRepository.deleteByBaseDateBefore(cutoffDate);
+            
+            log.info("환율 히스토리 정리 완료: {} 건 삭제 ({}일 이전 데이터)", deleteCount, retentionDays);
+            return deleteCount;
+            
+        } catch (Exception e) {
+            log.error("환율 히스토리 정리 중 오류 발생", e);
+            throw e;
+        }
+    }
+    
+    /**
+     * 90일 이상 된 오래된 환율 히스토리 데이터 삭제 (기본값)
+     */
+    @Transactional
+    public int deleteOldHistory() {
+        return deleteOldHistory(90);
+    }
 }

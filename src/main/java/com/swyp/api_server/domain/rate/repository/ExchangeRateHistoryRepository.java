@@ -2,6 +2,7 @@ package com.swyp.api_server.domain.rate.repository;
 
 import com.swyp.api_server.domain.rate.entity.ExchangeRateHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -62,4 +63,29 @@ public interface ExchangeRateHistoryRepository extends JpaRepository<ExchangeRat
     List<ExchangeRateHistory> findByPeriod(@Param("currencyCode") String currencyCode,
                                           @Param("startDate") LocalDate startDate,
                                           @Param("endDate") LocalDate endDate);
+    
+    /**
+     * 특정 날짜 이전의 오래된 히스토리 데이터 조회 (삭제 전 카운트용)
+     */
+    @Query("SELECT h FROM ExchangeRateHistory h WHERE h.baseDate < :cutoffDate")
+    List<ExchangeRateHistory> findByBaseDateBefore(@Param("cutoffDate") LocalDate cutoffDate);
+    
+    /**
+     * 특정 날짜 이전의 오래된 히스토리 데이터 삭제
+     */
+    @Modifying
+    @Query("DELETE FROM ExchangeRateHistory h WHERE h.baseDate < :cutoffDate")
+    void deleteByBaseDateBefore(@Param("cutoffDate") LocalDate cutoffDate);
+    
+    /**
+     * 히스토리 데이터 총 건수 조회
+     */
+    @Query("SELECT COUNT(h) FROM ExchangeRateHistory h")
+    long countAllHistory();
+    
+    /**
+     * 특정 날짜 이전 데이터 건수 조회
+     */
+    @Query("SELECT COUNT(h) FROM ExchangeRateHistory h WHERE h.baseDate < :cutoffDate")
+    long countByBaseDateBefore(@Param("cutoffDate") LocalDate cutoffDate);
 }
