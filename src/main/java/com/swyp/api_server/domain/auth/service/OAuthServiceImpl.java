@@ -11,6 +11,7 @@ import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class OAuthServiceImpl implements OAuthService {
     private final JwtTokenProvider jwtTokenProvider;    // JWT 토큰 생성기
     private final CommonHttpClient httpClient;          // HTTP 클라이언트
     private final CommonValidator validator;            // 공통 검증기
+    private final AppleTokenValidator appleTokenValidator; // Apple 토큰 검증기
 
     /**
      * 소셜 로그인 처리 (Apple 재로그인 지원)
@@ -93,12 +95,12 @@ public class OAuthServiceImpl implements OAuthService {
                 return UserInfo.builder()
                         .email(requestDto.getEmail())
                         .name(requestDto.getName())
-                        .providerId(extractProviderIdFromToken(requestDto.getAccessToken()))
+                        .providerId(validateAppleTokenAndGetProviderId(requestDto.getAccessToken()))
                         .build();
             }
             // 재로그인 시 (name, email이 없거나 빈 문자열) - providerId만 추출하고 나머지는 DB에서 조회
             return UserInfo.builder()
-                    .providerId(extractProviderIdFromToken(requestDto.getAccessToken()))
+                    .providerId(validateAppleTokenAndGetProviderId(requestDto.getAccessToken()))
                     .build();
         }
         
@@ -144,51 +146,32 @@ public class OAuthServiceImpl implements OAuthService {
     }
 
     /**
-     * Apple ID Token에서 providerId (sub) 추출
-     * JWT 토큰을 파싱하여 sub 필드 추출 (서명 검증 없이)
+     * Apple ID Token 검증 및 providerId (sub) 추출
+     * - Apple 공개키로 서명 검증
+     * - audience, issuer, 만료시간 검증
+     * - providerId (sub) 반환
      */
-    private String extractProviderIdFromToken(String accessToken) {
+    private String validateAppleTokenAndGetProviderId(String idToken) {
         try {
-            log.debug("Apple ID Token 파싱 시작: {}", accessToken.substring(0, Math.min(50, accessToken.length())) + "...");
+            log.debug("Apple ID Token 검증 시작: {}", idToken.substring(0, Math.min(50, idToken.length())) + "...");
             
-            // JWT 토큰을 '.'으로 분리 (header.payload.signature)
-            String[] parts = accessToken.split("\\.");
-            if (parts.length != 3) {
-                throw new IllegalArgumentException("Invalid JWT format - expected 3 parts but got " + parts.length);
-            }
-            
-            // Payload 부분(두 번째 부분)을 Base64 디코딩
-            String payload = parts[1];
-            
-            // Base64 URL-safe 디코딩
-            byte[] decodedBytes = Base64.getUrlDecoder().decode(payload);
-            String decodedPayload = new String(decodedBytes);
-            
-            log.debug("Decoded payload: {}", decodedPayload);
-            
-            // JSON 파싱하여 sub 필드 추출
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode claims = mapper.readTree(decodedPayload);
+            // Apple JWT 토큰 검증
+            Claims claims = appleTokenValidator.validateAndParseClaims(idToken);
             
             // sub 필드 추출 (Apple 사용자 고유 ID)
-            if (!claims.has("sub")) {
-                throw new IllegalArgumentException("sub field not found in JWT payload");
-            }
-            
-            String sub = claims.get("sub").asText();
-            if (sub == null || sub.isEmpty()) {
+            String providerId = claims.getSubject();
+            if (providerId == null || providerId.isEmpty()) {
                 throw new IllegalArgumentException("sub field is empty");
             }
             
-            log.info("Apple ID Token 파싱 성공 - providerId: {}", sub);
-            return sub;
+            log.info("Apple ID Token 검증 성공 - providerId: {}", providerId);
+            return providerId;
             
-        } catch (IllegalArgumentException e) {
-            log.error("Apple ID Token 형식 오류: {}", e.getMessage());
-            throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, "Apple ID Token 형식이 올바르지 않습니다: " + e.getMessage());
+        } catch (CustomException e) {
+            throw e;  // CustomException은 그대로 전파
         } catch (Exception e) {
-            log.error("Apple ID Token 파싱 중 예상치 못한 오류: {}", e.getMessage(), e);
-            throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, "Apple ID Token 파싱 실패: " + e.getMessage());
+            log.error("Apple ID Token 검증 중 예상치 못한 오류: {}", e.getMessage(), e);
+            throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, "Apple ID Token 검증 실패: " + e.getMessage());
         }
     }
 
