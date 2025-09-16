@@ -11,7 +11,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -69,10 +71,29 @@ public class ExchangeRateHistoryService {
         // 전일 환율 데이터 조회
         Map<String, ExchangeRateHistory> previousRatesMap = getPreviousRatesMap(today);
         
+        // 현재 환율 데이터를 Map으로 변환
+        Map<String, ExchangeRate> currentRatesMap = currentRates.stream()
+                .collect(Collectors.toMap(ExchangeRate::getCurrencyCode, rate -> rate));
+        
         List<ExchangeRateWithChangeDto> result = new ArrayList<>();
-        for (ExchangeRate current : currentRates) {
-            ExchangeRateHistory previous = previousRatesMap.get(current.getCurrencyCode());
-            result.add(ExchangeRateWithChangeDto.of(current, previous));
+        
+        // 모든 ExchangeType에 대해 일관된 응답 보장
+        for (com.swyp.api_server.domain.rate.ExchangeList.ExchangeType exchangeType : 
+             com.swyp.api_server.domain.rate.ExchangeList.ExchangeType.values()) {
+            
+            String currencyCode = exchangeType.getCode();
+            ExchangeRate current = currentRatesMap.get(currencyCode);
+            
+            if (current != null) {
+                // 현재 데이터가 있는 경우
+                ExchangeRateHistory previous = previousRatesMap.get(currencyCode);
+                result.add(ExchangeRateWithChangeDto.of(current, previous));
+            } else {
+                // 현재 데이터가 없는 경우 기본값으로 생성
+                ExchangeRateWithChangeDto defaultDto = createDefaultExchangeRateDto(exchangeType);
+                result.add(defaultDto);
+                log.warn("통화 코드 {} 의 환율 데이터가 없어 기본값으로 설정합니다.", currencyCode);
+            }
         }
         
         log.info("변동률 포함 환율 데이터 조회 완료: {} 건", result.size());
@@ -175,5 +196,23 @@ public class ExchangeRateHistoryService {
     @Transactional
     public int deleteOldHistory() {
         return deleteOldHistory(90);
+    }
+    
+    /**
+     * 환율 데이터가 없는 경우 기본값으로 ExchangeRateWithChangeDto 생성
+     */
+    private ExchangeRateWithChangeDto createDefaultExchangeRateDto(com.swyp.api_server.domain.rate.ExchangeList.ExchangeType exchangeType) {
+        String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        
+        return new ExchangeRateWithChangeDto(
+            exchangeType.getCode(),           // currencyCode
+            exchangeType.getLabel(),          // currencyName  
+            exchangeType.getFlagImageUrl(),   // flagImageUrl
+            BigDecimal.ZERO,                  // exchangeRate
+            currentDate,                      // baseDate
+            BigDecimal.ZERO,                  // changeAmount
+            0.0,                             // changePercent
+            "STABLE"                         // changeDirection
+        );
     }
 }

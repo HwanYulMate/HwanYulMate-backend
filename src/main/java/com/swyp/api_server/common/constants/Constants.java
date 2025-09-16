@@ -99,9 +99,7 @@ public final class Constants {
         public static final int HISTORICAL_MAX_DAYS = 365;
         public static final int DECIMAL_SCALE = 4;
         
-        // 100 단위 통화 코드 (수출입은행 API에서 100 단위로 제공되는 통화)
-        public static final String JPY_100_UNIT = "JPY(100)";  // 일본 엔 (100엔 단위)
-        public static final String IDR_100_UNIT = "IDR(100)";  // 인도네시아 루피아 (100 단위)
+        // 100 단위 통화 코드 (현재 사용하지 않음 - 한국수출입은행에서 미지원)
         
         // 통화 코드 매핑 (100단위 아님, 단순 코드 변환)
         public static final String CNH_CODE = "CNH"; // 중국 위안 (수출입은행에서는 CNY가 아닌 CNH 사용)

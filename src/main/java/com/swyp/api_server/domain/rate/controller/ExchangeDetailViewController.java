@@ -46,7 +46,7 @@ public class ExchangeDetailViewController {
     @Operation(summary = "실시간 환율 및 변동률 조회 (DB 기반, 변동률 포함)",
                description = "선택한 통화의 현재 환율과 전일 대비 변동률을 DB에서 조회합니다. " +
                           "데이터는 스케줄러에 의해 수집되어 DB에 저장되므로 빠른 응답속도를 제공합니다. " +
-                          "exchangeList와 동일한 구조로 반환됩니다.")
+                          "exchangeList와 동일한 배열 구조로 반환됩니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -69,7 +69,7 @@ public class ExchangeDetailViewController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    public ResponseEntity<ExchangeRateWithChangeDto> getRealtimeExchange(
+    public ResponseEntity<List<ExchangeRateWithChangeDto>> getRealtimeExchange(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @RequestParam String currencyCode) {
         
@@ -77,7 +77,7 @@ public class ExchangeDetailViewController {
         if (realtimeData == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(realtimeData);
+        return ResponseEntity.ok(List.of(realtimeData));
     }
 
     /**

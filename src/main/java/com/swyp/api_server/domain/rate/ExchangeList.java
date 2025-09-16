@@ -17,13 +17,11 @@ public enum ExchangeList {
      */
     public enum ExchangeType {
         USD("USD", "미국 달러", "/images/flags/us.png"),
-        JPY("JPY", "일본 엔", "/images/flags/jp.png"),
         EUR("EUR", "유럽 유로", "/images/flags/eu.png"),
         CNY("CNY", "중국 위안", "/images/flags/cn.png"),
         HKD("HKD", "홍콩 달러", "/images/flags/hk.png"),
         THB("THB", "태국 바트", "/images/flags/th.png"),
         SGD("SGD", "싱가폴 달러", "/images/flags/sg.png"),
-        IDR("IDR", "인도네시아 루피아", "/images/flags/id.png"),
         MYR("MYR", "말레이시아 링깃", "/images/flags/my.png"),
         GBP("GBP", "영국 파운드", "/images/flags/gb.png"),
         CAD("CAD", "캐나다 달러", "/images/flags/ca.png"),

@@ -34,7 +34,7 @@ import java.util.Optional;
  * 환율 데이터 조회 서비스 구현체
  * - 한국 수출입은행 API 사용하여 공식 환율 정보 제공
  * - 캐싱 기능으로 API 호출 최적화 (하루 1000회 제한)
- * - 14개국 통화 지원
+ * - 12개국 통화 지원
  */
 @Slf4j
 @Service
@@ -174,11 +174,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     private BigDecimal calculateActualExchangeRate(String dealBasRStr, String mappedCurrencyCode) {
         BigDecimal exchangeRate = new BigDecimal(dealBasRStr);
         
-        // JPY(100), IDR(100)만 100 단위이므로 1 단위로 환산
-        // CNH는 100단위가 아니므로 그대로 사용
-        if (mappedCurrencyCode.contains("(100)")) {
-            exchangeRate = exchangeRate.divide(BigDecimal.valueOf(100), Constants.Exchange.DECIMAL_SCALE, RoundingMode.HALF_UP);
-        }
+        // 현재 지원하는 통화는 모두 1 단위이므로 그대로 사용
         
         return exchangeRate;
     }
@@ -454,8 +450,6 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
      */
     private String mapToKoreaEximCurrencyCode(String standardCode) {
         return switch (standardCode.toUpperCase()) {
-            case "JPY" -> Constants.Exchange.JPY_100_UNIT;   // 일본 엔 (100엔 단위)
-            case "IDR" -> Constants.Exchange.IDR_100_UNIT;   // 인도네시아 루피아 (100 단위)
             case "CNY" -> Constants.Exchange.CNH_CODE;       // 중국 위안 (수출입은행에서는 CNH 사용)
             default -> standardCode;
         };
