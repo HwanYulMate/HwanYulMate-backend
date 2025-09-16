@@ -15,6 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // OAuth 소셜 로그인 관련 쿼리
     Optional<User> findByProviderAndProviderId(String provider, String providerId);
+    List<User> findAllByProviderAndProviderId(String provider, String providerId);
     
     // FCM 토큰 관련 쿼리
     List<User> findByFcmTokenIsNotNull();
