@@ -34,7 +34,7 @@ public class AppleTokenValidator {
     private final CommonHttpClient httpClient;
     private final ObjectMapper objectMapper;
     
-    @Value("${spring.security.oauth2.client.registration.apple.client-id:com.apptive.HwanYulMate}")
+    @Value("${APPLE_CLIENT_ID:com.apptive.HwanYulMate}")
     private String appleClientId;
     
     private static final String APPLE_PUBLIC_KEYS_URL = "https://appleid.apple.com/auth/keys";
