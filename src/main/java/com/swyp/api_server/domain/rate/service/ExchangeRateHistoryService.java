@@ -44,7 +44,7 @@ public class ExchangeRateHistoryService {
             return;
         }
 
-        List<ExchangeRate> currentRates = exchangeRateRepository.findAll();
+        List<ExchangeRate> currentRates = exchangeRateRepository.findAllLatestRates();
         if (currentRates.isEmpty()) {
             log.warn("현재 환율 데이터가 없어서 히스토리 저장을 건너뜁니다.");
             return;
@@ -63,7 +63,7 @@ public class ExchangeRateHistoryService {
      */
     @Transactional(readOnly = true)
     public List<ExchangeRateWithChangeDto> getRatesWithChange() {
-        List<ExchangeRate> currentRates = exchangeRateRepository.findAll();
+        List<ExchangeRate> currentRates = exchangeRateRepository.findAllLatestRates();
         LocalDate today = LocalDate.now();
         
         // 전일 환율 데이터 조회

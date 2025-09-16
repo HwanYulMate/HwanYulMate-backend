@@ -302,8 +302,32 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
      * 스케줄러가 정해진 시간에 API 호출 → DB 저장하므로 클라이언트는 DB에서만 조회
      */
     @Override
-    @Cacheable(value = Constants.Cache.HISTORICAL_RATE, key = "#currencyCode + '_' + #days")
     public List<ExchangeChartResponseDTO> getHistoricalExchangeRate(String currencyCode, int days) {
+        try {
+            // 캐시에서 조회 시도
+            return getHistoricalExchangeRateFromCache(currencyCode, days);
+        } catch (Exception e) {
+            log.warn("캐시 조회 실패, DB에서 직접 조회: {}, {} days, error: {}", currencyCode, days, e.getMessage());
+            // 캐시 실패 시 DB에서 직접 조회
+            return getHistoricalDataFromDatabaseSafely(currencyCode, days);
+        }
+    }
+    
+    /**
+     * 캐시를 통한 환율 히스토리 조회
+     */
+    @Cacheable(value = Constants.Cache.HISTORICAL_RATE, key = "#currencyCode + '_' + #days")
+    public List<ExchangeChartResponseDTO> getHistoricalExchangeRateFromCache(String currencyCode, int days) {
+        validator.validateCurrencyCode(currencyCode);
+        
+        log.info("캐시를 통한 환율 히스토리 조회: {} ({} days)", currencyCode, days);
+        return getHistoricalDataFromDatabaseSafely(currencyCode, days);
+    }
+    
+    /**
+     * 안전한 DB 조회 (예외 처리 강화)
+     */
+    private List<ExchangeChartResponseDTO> getHistoricalDataFromDatabaseSafely(String currencyCode, int days) {
         try {
             validator.validateCurrencyCode(currencyCode);
             

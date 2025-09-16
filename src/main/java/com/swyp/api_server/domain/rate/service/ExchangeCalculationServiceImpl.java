@@ -42,8 +42,8 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             // 통화 유효성 검증
             validateRequest(request);
             
-            // 실시간 환율 조회
-            BigDecimal baseRate = getCurrentExchangeRate(request.getCurrencyCode());
+            // 실시간 환율 및 기준 날짜 조회
+            ExchangeRateInfo rateInfo = getCurrentExchangeRateWithDate(request.getCurrencyCode());
             
             // DB에서 은행별 환율 정보 조회
             List<BankExchangeInfo> bankRates = bankInfoService.getAllActiveBankEntities();
@@ -62,7 +62,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             
             // 은행별 환전 결과 계산
             List<ExchangeResultResponseDTO> results = bankRates.stream()
-                .map(bankInfo -> calculateSingleExchange(request, bankInfo, baseRate))
+                .map(bankInfo -> calculateSingleExchange(request, bankInfo, rateInfo))
                 .sorted(Comparator.comparing(ExchangeResultResponseDTO::getFinalAmount).reversed())
                 .collect(Collectors.toList());
             
@@ -93,13 +93,34 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
+     * 환율 및 기준 날짜 정보를 담는 내부 클래스
+     */
+    private static class ExchangeRateInfo {
+        private final BigDecimal rate;
+        private final String baseDate;
+        
+        public ExchangeRateInfo(BigDecimal rate, String baseDate) {
+            this.rate = rate;
+            this.baseDate = baseDate;
+        }
+        
+        public BigDecimal getRate() {
+            return rate;
+        }
+        
+        public String getBaseDate() {
+            return baseDate;
+        }
+    }
+    
+    /**
      * 단일 은행의 환전 결과 계산
      */
     private ExchangeResultResponseDTO calculateSingleExchange(
-            ExchangeCalculationRequestDTO request, BankExchangeInfo bankInfo, BigDecimal baseRate) {
+            ExchangeCalculationRequestDTO request, BankExchangeInfo bankInfo, ExchangeRateInfo rateInfo) {
         
         // 기준 환율에 스프레드 적용
-        BigDecimal marketRate = baseRate;  // 파라미터로 받은 실시간 환율 사용
+        BigDecimal marketRate = rateInfo.getRate();  // 실시간 환율 사용
         BigDecimal spreadAmount = marketRate.multiply(bankInfo.getSpreadRate())
             .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
         
@@ -125,15 +146,28 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             finalRate = spreadAppliedRate.subtract(preferentialDiscount);
         }
         
-        // 환전 금액 계산 (100단위 통화 처리)
+        // 환전 금액 계산 (방향별 계산 로직)
         BigDecimal exchangedAmount;
-        if (isHundredUnitCurrency(request.getCurrencyCode())) {
-            // JPY, IDR은 100단위로 제공되므로 실제 계산 시 단위 조정
-            // 예: 10,000엔 환전 = (10,000 ÷ 100) × (100엔당 환율)
-            BigDecimal adjustedAmount = request.getAmount().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
-            exchangedAmount = adjustedAmount.multiply(finalRate);
+        
+        if (request.getDirection() == ExchangeCalculationRequestDTO.ExchangeDirection.FOREIGN_TO_KRW) {
+            // 외화 → 원화: 외화 × 환율 = 원화
+            if (isHundredUnitCurrency(request.getCurrencyCode())) {
+                // JPY, IDR은 100단위로 제공되므로 실제 계산 시 단위 조정
+                // 예: 10,000엔 환전 = (10,000 ÷ 100) × (100엔당 환율)
+                BigDecimal adjustedAmount = request.getAmount().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                exchangedAmount = adjustedAmount.multiply(finalRate);
+            } else {
+                exchangedAmount = request.getAmount().multiply(finalRate);
+            }
         } else {
-            exchangedAmount = request.getAmount().multiply(finalRate);
+            // 원화 → 외화: 원화 ÷ 환율 = 외화
+            if (isHundredUnitCurrency(request.getCurrencyCode())) {
+                // JPY, IDR은 100단위이므로 결과에 100을 곱해줌
+                exchangedAmount = request.getAmount().divide(finalRate, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+            } else {
+                exchangedAmount = request.getAmount().divide(finalRate, 4, RoundingMode.HALF_UP);
+            }
         }
         
         // 수수료 계산
@@ -161,6 +195,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             .flagImageUrl(getFlagImageUrl(request.getCurrencyCode()))
             .isOnlineAvailable(bankInfo.getIsOnlineAvailable())
             .description(bankInfo.getDescription())
+            .baseDate(rateInfo.getBaseDate())
             .build();
     }
     
@@ -180,22 +215,23 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
-     * 현재 환율 조회 - DB 전용 (API 호출 없음)
+     * 현재 환율 및 기준 날짜 조회 - DB 전용 (API 호출 없음)
      * 스케줄러가 수집한 캐시된 데이터만 사용
      */
-    private BigDecimal getCurrentExchangeRate(String currencyCode) {
+    private ExchangeRateInfo getCurrentExchangeRateWithDate(String currencyCode) {
         try {
             log.info("계산기용 환율 조회 (캐시/DB): {}", currencyCode);
             
             // 캐시된 환율 데이터 사용 (API 호출 없음)
             List<ExchangeResponseDTO> rates = exchangeRateService.getAllExchangeRates();
             
-            return rates.stream()
+            ExchangeResponseDTO rateData = rates.stream()
                 .filter(rate -> rate.getCurrencyCode().equals(currencyCode))
-                .map(rate -> rate.getExchangeRate())
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, 
                     "환율 정보를 찾을 수 없습니다. 스케줄러 동작을 확인해주세요: " + currencyCode));
+            
+            return new ExchangeRateInfo(rateData.getExchangeRate(), rateData.getBaseDate());
         } catch (CustomException e) {
             throw e;
         } catch (Exception e) {

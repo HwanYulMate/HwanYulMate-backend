@@ -31,18 +31,20 @@ public class OAuthController {
 
 
     /**
-     * 소셜 로그인 (Apple 재로그인 지원)
+     * 소셜 로그인 (통일된 API 구조)
+     * - Apple, Google 모두 통일된 3개 필드 구조 사용
      * - Apple 최초 로그인 시 name, email 정보 저장
-     * - Apple 재로그인 시 서버에서 저장된 사용자 정보 반환
+     * - Apple 재로그인 시 name, email을 빈 문자열로 전송
      * - Google은 항상 API에서 사용자 정보 조회
      * @param provider OAuth 제공자 (google, apple)
      * @param requestDto OAuth 로그인 요청 데이터
      * @return OAuth 로그인 응답 (JWT 토큰 + 사용자 정보)
      */
-    @Operation(summary = "소셜 로그인 (Apple 재로그인 지원)", 
-        description = "Apple 재로그인 문제를 해결한 소셜 로그인 API입니다. " +
-                     "Apple 최초 로그인 시에는 name, email을 함께 전송하고, " +
-                     "재로그인 시에는 accessToken만 전송하면 서버에서 저장된 사용자 정보를 반환합니다.")
+    @Operation(summary = "소셜 로그인 (통일된 API 구조)", 
+        description = "Apple과 Google OAuth API 구조를 통일한 소셜 로그인 API입니다. " +
+                     "Apple 최초 로그인 시에는 실제 name, email을 전송하고, " +
+                     "재로그인 시에는 name, email을 빈 문자열로 전송합니다. " +
+                     "Google은 항상 3개 필드를 모두 포함하여 전송합니다.")
     @ApiResponses({
         @ApiResponse(
             responseCode = "200", 
@@ -102,16 +104,20 @@ public class OAuthController {
                     ),
                     @ExampleObject(
                         name = "Apple 재로그인",
-                        description = "Apple 재로그인 시 accessToken만 전송",
+                        description = "Apple 재로그인 시 name, email을 빈 문자열로 전송",
                         value = "{\n" +
-                                "  \"accessToken\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...\"\n" +
+                                "  \"accessToken\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...\",\n" +
+                                "  \"name\": \"\",\n" +
+                                "  \"email\": \"\"\n" +
                                 "}"
                     ),
                     @ExampleObject(
                         name = "Google 로그인",
-                        description = "Google은 항상 API에서 사용자 정보 조회",
+                        description = "Google은 항상 3개 필드 모두 포함",
                         value = "{\n" +
-                                "  \"accessToken\": \"ya29.a0AfH6SMC...\"\n" +
+                                "  \"accessToken\": \"ya29.a0AfH6SMC...\",\n" +
+                                "  \"name\": \"홍길동\",\n" +
+                                "  \"email\": \"user@gmail.com\"\n" +
                                 "}"
                     )
                 }

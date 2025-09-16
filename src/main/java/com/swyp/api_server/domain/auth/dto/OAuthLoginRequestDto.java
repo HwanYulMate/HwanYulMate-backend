@@ -7,11 +7,13 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 /**
- * OAuth 소셜 로그인 요청 DTO
- * - Apple 로그인의 경우 최초 로그인 시에만 name, email 제공
- * - 재로그인 시에는 accessToken만 제공되므로 name, email은 Optional
+ * OAuth 소셜 로그인 요청 DTO (통일된 구조)
+ * - Apple, Google 모두 3개 필드를 모두 포함하여 전송
+ * - Apple 최초 로그인: 실제 name, email 값 전송
+ * - Apple 재로그인: name, email을 빈 문자열로 전송
+ * - Google: 항상 3개 필드 모두 포함
  */
-@Schema(description = "OAuth 소셜 로그인 요청")
+@Schema(description = "OAuth 소셜 로그인 요청 (통일된 구조)")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,13 +25,13 @@ public class OAuthLoginRequestDto {
             required = true)
     private String accessToken;
     
-    @Schema(description = "사용자 이름 (Apple 로그인 최초 시에만 제공)", 
+    @Schema(description = "사용자 이름 (Apple 재로그인 시 빈 문자열, Google은 항상 포함)", 
             example = "홍길동", 
-            required = false)
+            required = true)
     private String name;
     
-    @Schema(description = "사용자 이메일 (Apple 로그인 최초 시에만 제공)", 
+    @Schema(description = "사용자 이메일 (Apple 재로그인 시 빈 문자열, Google은 항상 포함)", 
             example = "user@icloud.com", 
-            required = false)
+            required = true)
     private String email;
 }

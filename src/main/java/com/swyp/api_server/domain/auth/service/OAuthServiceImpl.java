@@ -80,13 +80,15 @@ public class OAuthServiceImpl implements OAuthService {
 
     /**
      * OAuth 제공자 API로부터 사용자 정보 조회 (Apple 재로그인 지원)
-     * - Apple 재로그인 시 request에서 받은 name, email 사용
+     * - Apple 재로그인 시 request에서 받은 name, email 사용 (빈 문자열도 허용)
      */
     private UserInfo getUserInfo(String provider, OAuthLoginRequestDto requestDto) {
         // Apple의 경우 재로그인 시에는 API에서 name, email을 제공하지 않으므로
         // request에서 받은 정보를 우선 사용
         if ("apple".equalsIgnoreCase(provider)) {
-            if (requestDto.getName() != null && requestDto.getEmail() != null) {
+            // name과 email이 빈 문자열이 아닌 실제 값이 있으면 최초 로그인으로 처리
+            if (requestDto.getName() != null && !requestDto.getName().trim().isEmpty() &&
+                requestDto.getEmail() != null && !requestDto.getEmail().trim().isEmpty()) {
                 // 최초 로그인 시 - request에서 받은 정보 사용
                 return UserInfo.builder()
                         .email(requestDto.getEmail())
@@ -94,7 +96,7 @@ public class OAuthServiceImpl implements OAuthService {
                         .providerId(extractProviderIdFromToken(requestDto.getAccessToken()))
                         .build();
             }
-            // 재로그인 시 - providerId만 추출하고 나머지는 DB에서 조회
+            // 재로그인 시 (name, email이 없거나 빈 문자열) - providerId만 추출하고 나머지는 DB에서 조회
             return UserInfo.builder()
                     .providerId(extractProviderIdFromToken(requestDto.getAccessToken()))
                     .build();

@@ -60,6 +60,9 @@ public class ExchangeResultResponseDTO implements Serializable {
     @Schema(description = "추가 설명", example = "인터넷뱅킹 50% 우대율 적용")
     private String description;
     
+    @Schema(description = "환율 기준 날짜", example = "20250916")
+    private String baseDate;
+    
     /**
      * 수수료 상세 정보
      */

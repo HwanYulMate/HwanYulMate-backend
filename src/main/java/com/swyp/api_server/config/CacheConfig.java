@@ -2,9 +2,13 @@ package com.swyp.api_server.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swyp.api_server.common.constants.Constants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
@@ -24,10 +28,12 @@ import java.util.Map;
  * - 환율 데이터를 Redis에 캐싱하여 API 호출 최적화
  * - 캐시별 TTL 설정으로 세밀한 만료 시간 제어
  * - JSON 직렬화로 가독성 향상
+ * - 캐시 오류 시 원본 메소드 실행으로 안정성 보장
  */
+@Slf4j
 @Configuration
 @EnableCaching
-public class CacheConfig {
+public class CacheConfig implements CachingConfigurer {
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -109,10 +115,15 @@ public class CacheConfig {
         cacheConfigurations.put(Constants.Cache.DISTRIBUTED_LOCK, 
             defaultCacheConfig.entryTtl(Duration.ofMinutes(Constants.Cache.DISTRIBUTED_LOCK_TTL_MINUTES)));
         
-        return RedisCacheManager.builder(redisConnectionFactory)
+        RedisCacheManager cacheManager = RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultCacheConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
+        
+        // 캐시 에러 핸들러 설정 (캐시 오류 시 원본 메소드 실행)
+        cacheManager.setTransactionAware(false);
+        
+        return cacheManager;
     }
     
     /**
@@ -137,5 +148,37 @@ public class CacheConfig {
         
         template.afterPropertiesSet();
         return template;
+    }
+    
+    /**
+     * 캐시 오류 처리기 - 캐시 오류 시 원본 메소드를 실행하여 안정성 보장
+     */
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new CacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+                log.warn("캐시 조회 오류 발생, 원본 메소드 실행: cache={}, key={}, error={}", 
+                        cache.getName(), key, exception.getMessage());
+            }
+
+            @Override
+            public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+                log.warn("캐시 저장 오류 발생, 무시하고 계속 진행: cache={}, key={}, error={}", 
+                        cache.getName(), key, exception.getMessage());
+            }
+
+            @Override
+            public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+                log.warn("캐시 삭제 오류 발생, 무시하고 계속 진행: cache={}, key={}, error={}", 
+                        cache.getName(), key, exception.getMessage());
+            }
+
+            @Override
+            public void handleCacheClearError(RuntimeException exception, Cache cache) {
+                log.warn("캐시 클리어 오류 발생, 무시하고 계속 진행: cache={}, error={}", 
+                        cache.getName(), exception.getMessage());
+            }
+        };
     }
 }

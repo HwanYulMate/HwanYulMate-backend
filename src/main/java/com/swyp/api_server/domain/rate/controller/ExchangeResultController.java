@@ -46,7 +46,30 @@ public class ExchangeResultController {
         @ApiResponse(
             responseCode = "200", 
             description = "성공적으로 환전 결과를 반환함",
-            content = @Content(schema = @Schema(implementation = ExchangeResultResponseDTO.class))
+            content = @Content(
+                schema = @Schema(implementation = ExchangeResultResponseDTO.class),
+                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                    name = "환전 계산 결과",
+                    value = "[\n" +
+                            "  {\n" +
+                            "    \"bankName\": \"KB국민은행\",\n" +
+                            "    \"bankCode\": \"004\",\n" +
+                            "    \"baseRate\": 1385.20,\n" +
+                            "    \"appliedRate\": 1380.50,\n" +
+                            "    \"preferentialRate\": 50.0,\n" +
+                            "    \"spreadRate\": 1.5,\n" +
+                            "    \"totalFee\": 1000.0,\n" +
+                            "    \"finalAmount\": 1379500.0,\n" +
+                            "    \"inputAmount\": 1000.0,\n" +
+                            "    \"currencyCode\": \"USD\",\n" +
+                            "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
+                            "    \"isOnlineAvailable\": true,\n" +
+                            "    \"description\": \"인터넷뱅킹 50% 우대율 적용\",\n" +
+                            "    \"baseDate\": \"20250916\"\n" +
+                            "  }\n" +
+                            "]"
+                )
+            )
         ),
         @ApiResponse(
             responseCode = "400", 
