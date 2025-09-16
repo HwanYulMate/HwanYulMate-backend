@@ -196,8 +196,9 @@ public class OAuthServiceImpl implements OAuthService {
      * 소셜 로그인 사용자 조회 또는 신규 등록 (Apple 재로그인 지원)
      */
     private UserResult findOrCreateUser(UserInfo userInfo, String provider) {
-        // Apple 재로그인의 경우 providerId로만 조회
-        if ("apple".equalsIgnoreCase(provider) && userInfo.getEmail() == null) {
+        // Apple 재로그인의 경우 providerId로만 조회 (email이 null이거나 빈 문자열인 경우)
+        if ("apple".equalsIgnoreCase(provider) && 
+            (userInfo.getEmail() == null || userInfo.getEmail().trim().isEmpty())) {
             Optional<User> existingUser = userRepository.findByProviderAndProviderId(provider.toUpperCase(), userInfo.getProviderId());
             if (existingUser.isPresent()) {
                 return UserResult.builder()
