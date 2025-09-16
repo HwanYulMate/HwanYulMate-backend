@@ -35,9 +35,11 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
     List<ExchangeRate> findAllLatestRates();
     
     /**
-     * 특정 통화의 과거 N일간 환율 조회
+     * 특정 통화의 과거 N일간 환율 조회 (날짜별 최신 데이터만)
      */
-    @Query("SELECT er FROM ExchangeRate er WHERE er.currencyCode = :currencyCode ORDER BY er.baseDate DESC LIMIT :days")
+    @Query("SELECT er FROM ExchangeRate er WHERE er.currencyCode = :currencyCode " +
+           "AND er.id IN (SELECT MAX(er2.id) FROM ExchangeRate er2 WHERE er2.currencyCode = :currencyCode GROUP BY er2.baseDate) " +
+           "ORDER BY er.baseDate DESC LIMIT :days")
     List<ExchangeRate> findHistoricalRates(@Param("currencyCode") String currencyCode, @Param("days") int days);
     
     /**
