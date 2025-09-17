@@ -283,10 +283,30 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
         
-        List<AlertSetting> alertSettings = alertSettingRepository.findByUserAndIsActiveTrue(user);
-        return alertSettings.stream()
-                .map(this::convertToResponseDTO)
-                .collect(Collectors.toList());
+        // 기존 알림 설정을 Map으로 변환
+        List<AlertSetting> userAlertSettings = alertSettingRepository.findByUserAndIsActiveTrue(user);
+        java.util.Map<String, AlertSetting> alertSettingsMap = userAlertSettings.stream()
+                .collect(Collectors.toMap(AlertSetting::getCurrencyCode, setting -> setting));
+        
+        List<AlertSettingResponseDTO> result = new java.util.ArrayList<>();
+        
+        // 모든 ExchangeType에 대해 일관된 순서로 응답 생성
+        for (ExchangeList.ExchangeType exchangeType : ExchangeList.ExchangeType.values()) {
+            String currencyCode = exchangeType.getCode();
+            AlertSetting existingSetting = alertSettingsMap.get(currencyCode);
+            
+            if (existingSetting != null) {
+                // 기존 설정이 있는 경우
+                result.add(convertToResponseDTO(existingSetting));
+            } else {
+                // 설정이 없는 경우 기본값으로 생성
+                AlertSettingResponseDTO defaultSetting = createDefaultAlertSettingDTO(exchangeType);
+                result.add(defaultSetting);
+            }
+        }
+        
+        log.info("알림 설정 조회 완료: 사용자={}, 총 {} 개 통화", user.getEmail(), result.size());
+        return result;
     }
 
     @Override
@@ -304,14 +324,60 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     }
 
     private AlertSettingResponseDTO convertToResponseDTO(AlertSetting alertSetting) {
+        String currencyCode = alertSetting.getCurrencyCode();
+        
+        // ExchangeList에서 통화 정보 조회
+        String currencyName = getCurrencyName(currencyCode);
+        String flagImageUrl = getFlagImageUrl(currencyCode);
+        
         return new AlertSettingResponseDTO(
-                alertSetting.getCurrencyCode(),
+                currencyCode,
+                currencyName,
+                flagImageUrl,
                 alertSetting.getTargetPricePush(),
                 alertSetting.getTodayExchangeRatePush(),
                 alertSetting.getTargetPrice(),
                 alertSetting.getTargetPricePushHow(),
                 alertSetting.getTodayExchangeRatePushTime() != null ? 
                         alertSetting.getTodayExchangeRatePushTime().toString() : null
+        );
+    }
+    
+    /**
+     * 통화 코드에 해당하는 한글 이름 조회
+     */
+    private String getCurrencyName(String currencyCode) {
+        try {
+            return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getLabel();
+        } catch (IllegalArgumentException e) {
+            return currencyCode; // 찾을 수 없으면 코드 그대로 반환
+        }
+    }
+    
+    /**
+     * 통화 코드에 해당하는 국기 이미지 URL 조회
+     */
+    private String getFlagImageUrl(String currencyCode) {
+        try {
+            return ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase()).getFlagImageUrl();
+        } catch (IllegalArgumentException e) {
+            return "/images/flags/default.png"; // 기본 이미지 반환
+        }
+    }
+    
+    /**
+     * 알림 설정이 없는 통화에 대한 기본값 생성
+     */
+    private AlertSettingResponseDTO createDefaultAlertSettingDTO(ExchangeList.ExchangeType exchangeType) {
+        return new AlertSettingResponseDTO(
+                exchangeType.getCode(),           // currencyCode
+                exchangeType.getLabel(),          // currencyName
+                exchangeType.getFlagImageUrl(),   // flagImageUrl
+                false,                           // isTargetPriceEnabled
+                false,                           // isDailyAlertEnabled
+                null,                            // targetPrice
+                null,                            // targetPricePushHow
+                null                             // dailyAlertTime
         );
     }
 }

@@ -134,7 +134,34 @@ public class AlertSettingController {
                 description = "알림 설정 조회 성공",
                 content = @Content(
                     mediaType = "application/json",
-                    array = @ArraySchema(schema = @Schema(implementation = AlertSettingResponseDTO.class))
+                    array = @ArraySchema(schema = @Schema(implementation = AlertSettingResponseDTO.class)),
+                    examples = @ExampleObject(
+                        name = "알림 설정 목록 예시",
+                        value = """
+                        [
+                          {
+                            "currency_code": "USD",
+                            "currency_name": "미국 달러",
+                            "flag_image_url": "/images/flags/us.png",
+                            "is_target_price_enabled": true,
+                            "is_daily_alert_enabled": false,
+                            "target_price": 1400.00,
+                            "target_price_push_how": "ABOVE",
+                            "daily_alert_time": "09:00:00"
+                          },
+                          {
+                            "currency_code": "EUR",
+                            "currency_name": "유럽 유로",
+                            "flag_image_url": "/images/flags/eu.png",
+                            "is_target_price_enabled": false,
+                            "is_daily_alert_enabled": true,
+                            "target_price": null,
+                            "target_price_push_how": null,
+                            "daily_alert_time": "18:00:00"
+                          }
+                        ]
+                        """
+                    )
                 )
             ),
             @ApiResponse(
@@ -171,7 +198,22 @@ public class AlertSettingController {
                 description = "알림 설정 조회 성공",
                 content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = AlertSettingResponseDTO.class)
+                    schema = @Schema(implementation = AlertSettingResponseDTO.class),
+                    examples = @ExampleObject(
+                        name = "USD 알림 설정 예시",
+                        value = """
+                        {
+                          "currency_code": "USD",
+                          "currency_name": "미국 달러",
+                          "flag_image_url": "/images/flags/us.png",
+                          "is_target_price_enabled": true,
+                          "is_daily_alert_enabled": false,
+                          "target_price": 1400.00,
+                          "target_price_push_how": "ABOVE",
+                          "daily_alert_time": "09:00:00"
+                        }
+                        """
+                    )
                 )
             ),
             @ApiResponse(
