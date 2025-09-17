@@ -127,7 +127,7 @@ public class UserController {
      * @param request HTTP 요청 (Authorization 헤더에서 Access Token 추출)
      * @return 로그아웃 성공 메시지
      */
-    @Operation(summary = "로그아웃", description = "사용자의 Access Token을 무효화하여 로그아웃 처리합니다.",
+    @Operation(summary = "로그아웃", description = "사용자의 Access Token을 무효화하여 로그아웃 처리합니다. Apple 사용자의 경우 자동으로 Apple 토큰도 무효화됩니다.",
                security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
@@ -160,7 +160,7 @@ public class UserController {
      * @return 탈퇴 처리 결과 메시지
      */
     @Operation(summary = "회원 탈퇴", 
-        description = "회원 탈퇴를 처리합니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다.",
+        description = "회원 탈퇴를 처리합니다. Apple 사용자의 경우 자동으로 Apple 연동도 해제됩니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다.",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
@@ -299,5 +299,117 @@ public class UserController {
         String email = authUtil.extractUserEmail(request);
         UserInfoResponseDto userInfo = userService.getUserInfo(email);
         return ResponseEntity.ok(userInfo);
+    }
+
+    /**
+     * Apple 로그아웃 API
+     * @param appleLogoutRequest Apple refresh token 정보
+     * @param request HTTP 요청 (Authorization 헤더에서 Access Token 추출)
+     * @return 로그아웃 성공 메시지
+     */
+    @Operation(summary = "Apple 로그아웃", 
+        description = "Apple 사용자의 로그아웃을 처리합니다. Apple refresh token을 무효화하고 연동을 해제합니다.",
+        security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200", 
+            description = "Apple 로그아웃 성공",
+            content = @Content(examples = @ExampleObject(value = "Apple 로그아웃 성공"))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "로그아웃 실패 (유효하지 않은 토큰, 토큰 타입 오류 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "Apple 사용자가 아니거나 잘못된 요청",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버에서 예상치 못한 오류가 발생했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @PostMapping("/auth/apple/logout")
+    public ResponseEntity<?> logoutApple(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Apple 로그아웃 요청",
+            content = @Content(
+                examples = @ExampleObject(
+                    name = "Apple 로그아웃 요청",
+                    value = "{\n" +
+                            "  \"appleRefreshToken\": \"optional_apple_refresh_token_here\"\n" +
+                            "}"
+                )
+            )
+        )
+        @RequestBody java.util.Map<String, String> appleLogoutRequest, 
+        HttpServletRequest request) {
+        
+        String accessToken = authUtil.extractAndValidateToken(request);
+        authUtil.validateAccessToken(accessToken);
+        
+        String appleRefreshToken = appleLogoutRequest.get("appleRefreshToken");
+        userService.logoutApple(accessToken, appleRefreshToken);
+        
+        return ResponseEntity.ok("Apple 로그아웃 성공");
+    }
+
+    /**
+     * Apple 회원 탈퇴 API
+     * @param appleWithdrawRequest Apple refresh token 및 탈퇴 이유
+     * @param request HTTP 요청 (Authorization 헤더에서 사용자 정보 추출)
+     * @return 탈퇴 처리 결과 메시지
+     */
+    @Operation(summary = "Apple 회원 탈퇴", 
+        description = "Apple 사용자의 회원 탈퇴를 처리합니다. Apple 토큰을 무효화하고 연동을 해제한 후 30일간 데이터를 보관합니다.",
+        security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200", 
+            description = "Apple 탈퇴 처리 성공",
+            content = @Content(examples = @ExampleObject(value = "Apple 회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다."))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "탈퇴 처리 실패 (이미 탈퇴 처리된 사용자, Apple 사용자가 아님 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "인증 실패 (유효하지 않은 토큰 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "사용자 없음",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @DeleteMapping("/auth/apple/withdraw")
+    public ResponseEntity<?> withdrawApple(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Apple 탈퇴 요청",
+            content = @Content(
+                examples = @ExampleObject(
+                    name = "Apple 탈퇴 요청",
+                    value = "{\n" +
+                            "  \"reason\": \"더 이상 사용하지 않음\",\n" +
+                            "  \"appleRefreshToken\": \"optional_apple_refresh_token_here\"\n" +
+                            "}"
+                )
+            )
+        )
+        @RequestBody java.util.Map<String, String> appleWithdrawRequest, 
+        HttpServletRequest request) {
+        
+        String email = authUtil.extractUserEmail(request);
+        String reason = appleWithdrawRequest.get("reason");
+        String appleRefreshToken = appleWithdrawRequest.get("appleRefreshToken");
+        
+        userService.withdrawApple(email, reason, appleRefreshToken);
+        return ResponseEntity.ok("Apple 회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
     }
 }

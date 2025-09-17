@@ -47,8 +47,15 @@ public class User {
     @Column(name = "fcm_token")
     private String fcmToken;  // FCM 푸시 알림용 디바이스 토큰
     
+    @Column(name = "apple_refresh_token", length = 2000)
+    private String appleRefreshToken;  // Apple OAuth refresh token (로그아웃/탈퇴 시 필요)
+    
     public void setFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
+    }
+    
+    public void setAppleRefreshToken(String appleRefreshToken) {
+        this.appleRefreshToken = appleRefreshToken;
     }
     
     /**
@@ -68,6 +75,13 @@ public class User {
         this.isDeleted = false;
         this.deletedAt = null;
         this.finalDeletionDate = null;
+    }
+    
+    /**
+     * Apple 사용자인지 확인
+     */
+    public boolean isAppleUser() {
+        return "apple".equalsIgnoreCase(this.provider);
     }
 
 

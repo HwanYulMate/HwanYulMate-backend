@@ -1,6 +1,7 @@
 package com.swyp.api_server.domain.user.service;
 
 import com.swyp.api_server.config.security.JwtTokenProvider;
+import com.swyp.api_server.domain.auth.service.AppleTokenValidator;
 import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
@@ -10,17 +11,20 @@ import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AppleTokenValidator appleTokenValidator;
 
     @Override
     public boolean signUp(SignRequestDto signRequestDto) {
@@ -97,12 +101,23 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(ErrorCode.INVALID_TOKEN_TYPE, "Access Token이 아닙니다.");
         }
 
-        // 로그아웃 처리 (JWT는 stateless이므로 클라이언트에서 토큰 삭제)
-        // 필요시 Redis에 블랙리스트 토큰 저장 가능
-        
+        // 사용자 정보 조회
         String email = jwtTokenProvider.getEmailFromToken(accessToken);
-        // 로그 기록
-        // log.info("사용자 로그아웃: {}", email);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+
+        // Apple 사용자인 경우 Apple 토큰 무효화
+        if (user.isAppleUser() && user.getAppleRefreshToken() != null) {
+            appleTokenValidator.revokeAppleToken(user.getAppleRefreshToken(), user.getProviderId());
+            
+            // Apple refresh token 삭제
+            user.setAppleRefreshToken(null);
+            userRepository.save(user);
+            
+            log.info("Apple 사용자 로그아웃 (자동 감지): {}", email);
+        } else {
+            log.info("일반 사용자 로그아웃: {}", email);
+        }
     }
 
     @Override
@@ -115,12 +130,75 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
         }
 
+        // Apple 사용자인 경우 Apple 토큰 무효화 및 연동 해제
+        if (user.isAppleUser()) {
+            if (user.getAppleRefreshToken() != null) {
+                appleTokenValidator.revokeAppleToken(user.getAppleRefreshToken(), user.getProviderId());
+            }
+            appleTokenValidator.disconnectAppleAccount(user.getProviderId());
+            
+            // Apple refresh token 삭제
+            user.setAppleRefreshToken(null);
+            
+            log.info("Apple 사용자 탈퇴 처리 (자동 감지): {}", email);
+        } else {
+            log.info("일반 사용자 탈퇴 처리: {}", email);
+        }
+
         // 30일 보관 탈퇴 처리 (이유 포함)
         user.withdraw(reason);
         userRepository.save(user);
         
-        // 탈퇴 처리 로그
-        // log.info("회원 탈퇴 처리: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
+        log.info("회원 탈퇴 처리 완료: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
+    }
+
+    @Override
+    public void logoutApple(String accessToken, String appleRefreshToken) {
+        // 기본 로그아웃 처리
+        logout(accessToken);
+        
+        // Apple 토큰 무효화
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+                
+        if (user.isAppleUser() && appleRefreshToken != null && !appleRefreshToken.trim().isEmpty()) {
+            appleTokenValidator.revokeAppleToken(appleRefreshToken, user.getProviderId());
+            
+            // Apple refresh token 삭제
+            user.setAppleRefreshToken(null);
+            userRepository.save(user);
+        }
+        
+        log.info("Apple 사용자 로그아웃 완료: {}", email);
+    }
+
+    @Override
+    public void withdrawApple(String email, String reason, String appleRefreshToken) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
+
+        // 이미 탈퇴한 사용자인지 확인
+        if (user.getIsDeleted()) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
+        }
+
+        // Apple 사용자인 경우 Apple 토큰 무효화 및 연동 해제
+        if (user.isAppleUser()) {
+            if (appleRefreshToken != null && !appleRefreshToken.trim().isEmpty()) {
+                appleTokenValidator.revokeAppleToken(appleRefreshToken, user.getProviderId());
+            }
+            appleTokenValidator.disconnectAppleAccount(user.getProviderId());
+            
+            // Apple refresh token 삭제
+            user.setAppleRefreshToken(null);
+        }
+
+        // 30일 보관 탈퇴 처리 (이유 포함)
+        user.withdraw(reason);
+        userRepository.save(user);
+        
+        log.info("Apple 사용자 탈퇴 처리: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
     }
 
     @Override

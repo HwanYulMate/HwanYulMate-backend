@@ -20,6 +20,12 @@ import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * Apple JWT 토큰 검증 서비스
@@ -39,6 +45,7 @@ public class AppleTokenValidator {
     
     private static final String APPLE_PUBLIC_KEYS_URL = "https://appleid.apple.com/auth/keys";
     private static final String APPLE_ISSUER = "https://appleid.apple.com";
+    private static final String APPLE_REVOKE_URL = "https://appleid.apple.com/auth/revoke";
     
     // 공개키 캐시 (실제 운영에서는 Redis나 캐시 사용 권장)
     private Map<String, PublicKey> publicKeyCache = new HashMap<>();
@@ -171,6 +178,52 @@ public class AppleTokenValidator {
             log.error("RSA 공개키 생성 실패: {}", e.getMessage());
             throw new CustomException(ErrorCode.OAUTH_TOKEN_INVALID, 
                 "RSA 공개키 생성 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Apple 토큰 무효화 (로그아웃/탈퇴 시 사용)
+     * @param refreshToken Apple에서 발급받은 refresh token
+     * @param providerId Apple 사용자 ID
+     */
+    public void revokeAppleToken(String refreshToken, String providerId) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("client_id", appleClientId);
+            params.add("token", refreshToken);
+            params.add("token_type_hint", "refresh_token");
+            
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+            
+            restTemplate.postForEntity(APPLE_REVOKE_URL, request, String.class);
+            
+            log.info("Apple 토큰 무효화 완료: providerId={}", providerId);
+            
+        } catch (Exception e) {
+            // Apple 토큰 무효화 실패는 로그만 남기고 진행 (이미 만료된 토큰일 수 있음)
+            log.warn("Apple 토큰 무효화 실패 (계속 진행): providerId={}, error={}", providerId, e.getMessage());
+        }
+    }
+
+    /**
+     * Apple 계정 연동 해제 (탈퇴 시 사용)
+     * @param providerId Apple 사용자 ID
+     */
+    public void disconnectAppleAccount(String providerId) {
+        try {
+            // Apple에서는 별도의 연동 해제 API가 없으므로
+            // 토큰 무효화로 대체하고 로컬 데이터 정리
+            log.info("Apple 계정 연동 해제 처리: providerId={}", providerId);
+            
+            // 필요시 추가적인 Apple 관련 데이터 정리 로직
+            
+        } catch (Exception e) {
+            log.warn("Apple 계정 연동 해제 중 오류 (계속 진행): providerId={}, error={}", providerId, e.getMessage());
         }
     }
 }

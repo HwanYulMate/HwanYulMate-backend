@@ -10,7 +10,9 @@ public interface UserService {
     TokenResponseDto login(LoginRequestDto loginRequestDto);
     TokenResponseDto refreshToken(String refreshToken);
     void logout(String accessToken);
+    void logoutApple(String accessToken, String appleRefreshToken);
     void withdraw(String email, String reason);
+    void withdrawApple(String email, String reason, String appleRefreshToken);
     void updateFCMToken(String email, String fcmToken);
     void updateUserName(String email, String newUserName);
     UserInfoResponseDto getUserInfo(String email);
