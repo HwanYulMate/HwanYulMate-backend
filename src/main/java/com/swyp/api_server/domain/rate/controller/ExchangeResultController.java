@@ -59,8 +59,8 @@ public class ExchangeResultController {
                             "    \"preferentialRate\": 50.0,\n" +
                             "    \"spreadRate\": 1.5,\n" +
                             "    \"totalFee\": 1000.0,\n" +
-                            "    \"finalAmount\": 1379500.0,\n" +
-                            "    \"inputAmount\": 1000.0,\n" +
+                            "    \"finalAmount\": 137050.0,\n" +
+                            "    \"inputAmount\": 100.0,\n" +
                             "    \"currencyCode\": \"USD\",\n" +
                             "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
                             "    \"isOnlineAvailable\": true,\n" +

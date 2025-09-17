@@ -151,23 +151,10 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
         
         if (request.getDirection() == ExchangeCalculationRequestDTO.ExchangeDirection.FOREIGN_TO_KRW) {
             // 외화 → 원화: 외화 × 환율 = 원화
-            if (isHundredUnitCurrency(request.getCurrencyCode())) {
-                // JPY, IDR은 100단위로 제공되므로 실제 계산 시 단위 조정
-                // 예: 10,000엔 환전 = (10,000 ÷ 100) × (100엔당 환율)
-                BigDecimal adjustedAmount = request.getAmount().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
-                exchangedAmount = adjustedAmount.multiply(finalRate);
-            } else {
-                exchangedAmount = request.getAmount().multiply(finalRate);
-            }
+            exchangedAmount = request.getAmount().multiply(finalRate);
         } else {
             // 원화 → 외화: 원화 ÷ 환율 = 외화
-            if (isHundredUnitCurrency(request.getCurrencyCode())) {
-                // JPY, IDR은 100단위이므로 결과에 100을 곱해줌
-                exchangedAmount = request.getAmount().divide(finalRate, 4, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-            } else {
-                exchangedAmount = request.getAmount().divide(finalRate, 4, RoundingMode.HALF_UP);
-            }
+            exchangedAmount = request.getAmount().divide(finalRate, 4, RoundingMode.HALF_UP);
         }
         
         // 수수료 계산
@@ -271,12 +258,6 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
         }
     }
     
-    /**
-     * 100단위로 제공되는 통화인지 확인
-     */
-    private boolean isHundredUnitCurrency(String currencyCode) {
-        return "JPY".equals(currencyCode) || "IDR".equals(currencyCode);
-    }
     
     /**
      * 통화 코드에 해당하는 국기 이미지 URL 조회

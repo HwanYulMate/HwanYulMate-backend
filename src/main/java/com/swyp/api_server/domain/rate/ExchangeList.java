@@ -54,7 +54,7 @@ public enum ExchangeList {
 
         /**
          * 모든 ExchangeType을 code와 label 모두 포함해 문자열 리스트로 반환
-         * 예: ["USD", "달러(미국)", "JPY", "엔(일본)", ...]
+         * 예: ["USD", "달러(미국)", "EUR", "유로(유럽)", ...]
          */
         public static List<String> all() {
             java.util.ArrayList<String> list = new java.util.ArrayList<>();

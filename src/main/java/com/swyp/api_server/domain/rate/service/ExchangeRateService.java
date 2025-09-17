@@ -21,7 +21,7 @@ public interface ExchangeRateService {
     
     /**
      * 특정 통화의 실시간 환율 및 등락률 조회
-     * @param currencyCode 통화 코드 (USD, JPY, EUR 등)
+     * @param currencyCode 통화 코드 (USD, EUR, CNY 등)
      * @return 실시간 환율과 등락률 정보
      */
     ExchangeRealtimeResponseDTO getRealtimeExchangeRate(String currencyCode);

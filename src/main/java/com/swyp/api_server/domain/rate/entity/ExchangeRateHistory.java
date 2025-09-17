@@ -35,7 +35,7 @@ public class ExchangeRateHistory {
     private Long id;
 
     /**
-     * 통화 코드 (USD, EUR, JPY 등)
+     * 통화 코드 (USD, EUR, CNY 등)
      */
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;

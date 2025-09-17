@@ -433,7 +433,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         for (JsonNode item : responseArray) {
             String curUnit = item.get("cur_unit").asText();
             
-            // 수출입은행에서는 통화 단위가 다를 수 있음 (예: USD, JPY(100) 등)
+            // 수출입은행에서는 통화 단위가 다를 수 있음 (예: USD, EUR 등)
             String cleanCurUnit = curUnit.replaceAll("\\(.*\\)", "").trim();
             
             if (cleanCurUnit.equalsIgnoreCase(targetCurrencyCode)) {

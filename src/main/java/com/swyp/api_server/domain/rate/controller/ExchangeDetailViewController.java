@@ -39,7 +39,7 @@ public class ExchangeDetailViewController {
 
     /**
      * 특정 통화의 실시간 환율 및 변동률 조회 (변동률 포함)
-     * @param currencyCode 통화 코드 (USD, JPY, EUR 등)
+     * @param currencyCode 통화 코드 (USD, EUR, CNY 등)
      * @return 실시간 환율과 변동률 정보 (exchangeList와 동일한 구조)
      */
     @GetMapping("/exchange/realtime")

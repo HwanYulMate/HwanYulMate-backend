@@ -68,7 +68,7 @@ public class CommonValidator {
     
     /**
      * 통화 코드 유효성 검증
-     * @param currencyCode 통화 코드 (USD, EUR, JPY 등)
+     * @param currencyCode 통화 코드 (USD, EUR, CNY 등)
      * @throws CustomException 유효하지 않은 통화 코드인 경우
      */
     public void validateCurrencyCode(String currencyCode) {

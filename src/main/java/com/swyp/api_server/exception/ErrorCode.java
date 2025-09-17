@@ -40,7 +40,7 @@ public enum ErrorCode {
     // 환율 관련 에러 (RATE_xxx)
     EXCHANGE_RATE_NOT_FOUND(HttpStatus.NOT_FOUND, "RATE_001", "해당 통화의 환율 정보를 찾을 수 없습니다. 통화 코드를 확인하거나 잠시 후 시도해주세요."),
     EXCHANGE_RATE_API_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "RATE_002", "환율 정보 조회 서비스가 일시적으로 이용할 수 없습니다. 잠시 후 다시 시도해주세요."),
-    INVALID_CURRENCY_CODE(HttpStatus.BAD_REQUEST, "RATE_003", "지원하지 않는 통화 코드입니다. 지원 통화 목록을 확인해주세요. (예: USD, JPY, EUR 등)"),
+    INVALID_CURRENCY_CODE(HttpStatus.BAD_REQUEST, "RATE_003", "지원하지 않는 통화 코드입니다. 지원 통화 목록을 확인해주세요. (예: USD, EUR, CNY 등)"),
     INVALID_EXCHANGE_AMOUNT(HttpStatus.BAD_REQUEST, "RATE_004", "환전 금액 형식이 올바르지 않습니다. 양수로 입력해주세요."),
     EXCHANGE_AMOUNT_BELOW_MINIMUM(HttpStatus.BAD_REQUEST, "RATE_005", "최소 환전 금액보다 적습니다. 더 큰 금액을 입력해주세요."),
     EXCHANGE_AMOUNT_ABOVE_MAXIMUM(HttpStatus.BAD_REQUEST, "RATE_006", "최대 환전 금액을 초과했습니다. 더 적은 금액을 입력해주세요."),
