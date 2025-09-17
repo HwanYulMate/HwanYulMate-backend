@@ -1,9 +1,12 @@
 package com.swyp.api_server.domain.alert.service;
 
 import com.swyp.api_server.domain.alert.dto.AlertSettingRequestDTO;
-import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingResponseDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingListResponseDTO;
+import com.swyp.api_server.domain.alert.dto.AlertTargetRequestDTO;
+import com.swyp.api_server.domain.alert.dto.AlertTargetResponseDTO;
+import com.swyp.api_server.domain.alert.dto.AlertDailyRequestDTO;
+import com.swyp.api_server.domain.alert.dto.AlertDailyResponseDTO;
 import com.swyp.api_server.domain.alert.repository.AlertSettingRepository;
 import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
@@ -72,38 +75,6 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         log.info("알림 설정 저장 완료: 사용자={}, 설정개수={}", userEmail, alertSettings.size());
     }
     
-    @Override
-    public void saveDetailAlertSettings(String userEmail, String currencyCode, AlertSettingDetailRequestDTO detailSettings) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + userEmail));
-        
-        // 기존 설정 조회 또는 새로 생성
-        AlertSetting alertSetting = alertSettingRepository
-                .findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode)
-                .orElse(AlertSetting.builder()
-                        .user(user)
-                        .currencyCode(currencyCode)
-                        .isActive(true)
-                        .build());
-        
-        // 상세 설정 업데이트
-        LocalTime alertTime = detailSettings.getTodayExchangeRatePushTime() != null 
-                ? LocalTime.parse(detailSettings.getTodayExchangeRatePushTime()) 
-                : null;
-        
-        alertSetting.updateAlertSettings(
-                detailSettings.isTargetPricePush(),
-                BigDecimal.valueOf(detailSettings.getTargetPrice()),
-                detailSettings.getTargetPricePushHow(),
-                detailSettings.isTodayExchangeRatePush(),
-                alertTime
-        );
-        
-        alertSettingRepository.save(alertSetting);
-        
-        log.info("알림 상세 설정 저장: 사용자={}, 통화={}, 목표환율={}", 
-                userEmail, currencyCode, detailSettings.getTargetPrice());
-    }
     
     @Override
     @Scheduled(fixedRate = 300000) // 5분마다 실행
@@ -389,5 +360,164 @@ public class AlertSettingServiceImpl implements AlertSettingService {
                 null,                            // targetPricePushHow
                 null                             // dailyAlertTime
         );
+    }
+    
+    @Override
+    public void saveTargetAlertSettings(String userEmail, String currencyCode, AlertTargetRequestDTO targetSettings) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + userEmail));
+        
+        // 지원하는 통화인지 확인
+        try {
+            ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "지원하지 않는 통화 코드입니다: " + currencyCode);
+        }
+        
+        // 기존 설정 조회 또는 새로 생성
+        AlertSetting alertSetting = alertSettingRepository
+                .findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode)
+                .orElse(AlertSetting.builder()
+                        .user(user)
+                        .currencyCode(currencyCode)
+                        .isActive(true)
+                        .build());
+        
+        // 목표 환율 설정 업데이트
+        if (targetSettings.isEnabled()) {
+            if (targetSettings.getTargetPrice() == null || targetSettings.getCondition() == null) {
+                throw new CustomException(ErrorCode.INVALID_REQUEST, "목표 환율과 조건을 모두 입력해주세요.");
+            }
+            alertSetting.updateTargetSettings(
+                    true,
+                    BigDecimal.valueOf(targetSettings.getTargetPrice()),
+                    targetSettings.getCondition()
+            );
+        } else {
+            alertSetting.updateTargetSettings(false, null, null);
+        }
+        
+        alertSettingRepository.save(alertSetting);
+        
+        log.info("목표 환율 알림 설정 저장: 사용자={}, 통화={}, 활성화={}, 목표환율={}", 
+                userEmail, currencyCode, targetSettings.isEnabled(), targetSettings.getTargetPrice());
+    }
+    
+    @Override
+    public void saveDailyAlertSettings(String userEmail, String currencyCode, AlertDailyRequestDTO dailySettings) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + userEmail));
+        
+        // 지원하는 통화인지 확인
+        try {
+            ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "지원하지 않는 통화 코드입니다: " + currencyCode);
+        }
+        
+        // 기존 설정 조회 또는 새로 생성
+        AlertSetting alertSetting = alertSettingRepository
+                .findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode)
+                .orElse(AlertSetting.builder()
+                        .user(user)
+                        .currencyCode(currencyCode)
+                        .isActive(true)
+                        .build());
+        
+        // 일일 알림 설정 업데이트
+        if (dailySettings.isEnabled()) {
+            if (dailySettings.getAlertTime() == null) {
+                throw new CustomException(ErrorCode.INVALID_REQUEST, "알림 시간을 입력해주세요.");
+            }
+            try {
+                LocalTime alertTime = LocalTime.parse(dailySettings.getAlertTime());
+                alertSetting.updateDailySettings(true, alertTime);
+            } catch (Exception e) {
+                throw new CustomException(ErrorCode.INVALID_REQUEST, "올바른 시간 형식이 아닙니다. (HH:mm)");
+            }
+        } else {
+            alertSetting.updateDailySettings(false, null);
+        }
+        
+        alertSettingRepository.save(alertSetting);
+        
+        log.info("일일 환율 알림 설정 저장: 사용자={}, 통화={}, 활성화={}, 알림시간={}", 
+                userEmail, currencyCode, dailySettings.isEnabled(), dailySettings.getAlertTime());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public AlertTargetResponseDTO getTargetAlertSetting(Long userId, String currencyCode) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
+        
+        // 지원하는 통화인지 확인
+        ExchangeList.ExchangeType exchangeType;
+        try {
+            exchangeType = ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "지원하지 않는 통화 코드입니다: " + currencyCode);
+        }
+        
+        Optional<AlertSetting> alertSetting = alertSettingRepository.findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode);
+        
+        if (alertSetting.isPresent()) {
+            AlertSetting setting = alertSetting.get();
+            return AlertTargetResponseDTO.builder()
+                    .currencyCode(currencyCode)
+                    .currencyName(exchangeType.getLabel())
+                    .flagImageUrl(exchangeType.getFlagImageUrl())
+                    .isEnabled(setting.getTargetPricePush() != null ? setting.getTargetPricePush() : false)
+                    .targetPrice(setting.getTargetPrice())
+                    .condition(setting.getTargetPricePushHow())
+                    .build();
+        } else {
+            // 설정이 없으면 기본값 반환
+            return AlertTargetResponseDTO.builder()
+                    .currencyCode(currencyCode)
+                    .currencyName(exchangeType.getLabel())
+                    .flagImageUrl(exchangeType.getFlagImageUrl())
+                    .isEnabled(false)
+                    .targetPrice(null)
+                    .condition(null)
+                    .build();
+        }
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public AlertDailyResponseDTO getDailyAlertSetting(Long userId, String currencyCode) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
+        
+        // 지원하는 통화인지 확인
+        ExchangeList.ExchangeType exchangeType;
+        try {
+            exchangeType = ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "지원하지 않는 통화 코드입니다: " + currencyCode);
+        }
+        
+        Optional<AlertSetting> alertSetting = alertSettingRepository.findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode);
+        
+        if (alertSetting.isPresent()) {
+            AlertSetting setting = alertSetting.get();
+            return AlertDailyResponseDTO.builder()
+                    .currencyCode(currencyCode)
+                    .currencyName(exchangeType.getLabel())
+                    .flagImageUrl(exchangeType.getFlagImageUrl())
+                    .isEnabled(setting.getTodayExchangeRatePush() != null ? setting.getTodayExchangeRatePush() : false)
+                    .alertTime(setting.getTodayExchangeRatePushTime() != null ? setting.getTodayExchangeRatePushTime().toString() : null)
+                    .build();
+        } else {
+            // 설정이 없으면 기본값 반환
+            return AlertDailyResponseDTO.builder()
+                    .currencyCode(currencyCode)
+                    .currencyName(exchangeType.getLabel())
+                    .flagImageUrl(exchangeType.getFlagImageUrl())
+                    .isEnabled(false)
+                    .alertTime(null)
+                    .build();
+        }
     }
 }

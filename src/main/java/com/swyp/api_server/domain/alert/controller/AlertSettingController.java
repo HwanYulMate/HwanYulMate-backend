@@ -1,8 +1,11 @@
 package com.swyp.api_server.domain.alert.controller;
 
 import com.swyp.api_server.domain.alert.dto.AlertSettingRequestDTO;
-import com.swyp.api_server.domain.alert.dto.AlertSettingDetailRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertSettingResponseDTO;
+import com.swyp.api_server.domain.alert.dto.AlertTargetRequestDTO;
+import com.swyp.api_server.domain.alert.dto.AlertTargetResponseDTO;
+import com.swyp.api_server.domain.alert.dto.AlertDailyRequestDTO;
+import com.swyp.api_server.domain.alert.dto.AlertDailyResponseDTO;
 import com.swyp.api_server.domain.alert.service.AlertSettingService;
 import com.swyp.api_server.common.util.AuthUtil;
 import org.springframework.http.ResponseEntity;
@@ -78,50 +81,6 @@ public class AlertSettingController {
     }
 
 
-    @Operation(
-            summary = "알림 상세 설정 저장", 
-            description = "특정 통화의 목표 환율 및 오늘의 환율 알림 상세 설정을 저장합니다.",
-            security = @SecurityRequirement(name = "BearerAuth")
-    )
-    @ApiResponses({
-            @ApiResponse(
-                responseCode = "200", 
-                description = "알림 상세 설정 저장 성공",
-                content = @Content(examples = @ExampleObject(value = "알림 상세 설정이 저장되었습니다."))
-            ),
-            @ApiResponse(
-                responseCode = "400", 
-                description = "잘못된 요청 (지원하지 않는 통화 코드, 잘못된 알림 상세 설정 데이터 등)",
-                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                responseCode = "401", 
-                description = "인증 필요 (유효하지 않은 토큰 등)",
-                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                responseCode = "404", 
-                description = "사용자를 찾을 수 없습니다",
-                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                responseCode = "500", 
-                description = "서버에서 예상치 못한 오류가 발생했습니다",
-                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
-    })
-    @PostMapping("/alert/setting/{currencyCode}/detail")
-    public ResponseEntity<String> saveDetailAlertSettings(
-            @Parameter(description = "통화 코드", example = "USD", required = true)
-            @PathVariable String currencyCode,
-            @org.springframework.web.bind.annotation.RequestBody AlertSettingDetailRequestDTO detailRequestDTO,
-            HttpServletRequest request) {
-        
-        String userEmail = authUtil.extractUserEmail(request);
-        
-        alertSettingService.saveDetailAlertSettings(userEmail, currencyCode, detailRequestDTO);
-        return ResponseEntity.ok("알림 상세 설정이 저장되었습니다.");
-    }
 
     @Operation(
             summary = "사용자 전체 알림 설정 조회",
@@ -242,5 +201,231 @@ public class AlertSettingController {
         Long userId = authUtil.extractUserId(request);
         AlertSettingResponseDTO alertSetting = alertSettingService.getAlertSetting(userId, currencyCode);
         return ResponseEntity.ok(List.of(alertSetting));
+    }
+    
+    @Operation(
+            summary = "목표 환율 알림 설정",
+            description = "특정 통화의 목표 환율 알림을 설정합니다. 환율이 목표가격에 도달하면 푸시 알림을 발송합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "목표 환율 알림 설정 성공",
+                content = @Content(examples = @ExampleObject(value = "목표 환율 알림 설정이 저장되었습니다."))
+            ),
+            @ApiResponse(
+                responseCode = "400", 
+                description = "잘못된 요청 (지원하지 않는 통화 코드, 잘못된 목표 환율 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PostMapping("/alert/setting/{currencyCode}/target")
+    public ResponseEntity<String> saveTargetAlertSettings(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            @RequestBody(
+                description = "목표 환율 알림 설정 정보",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertTargetRequestDTO.class),
+                    examples = @ExampleObject(
+                        name = "목표 환율 알림 설정 예시",
+                        value = """
+                        {
+                          "enabled": true,
+                          "targetPrice": 1350.7,
+                          "condition": "ABOVE"
+                        }
+                        """
+                    )
+                )
+            )
+            @org.springframework.web.bind.annotation.RequestBody AlertTargetRequestDTO targetRequestDTO,
+            HttpServletRequest request) {
+        
+        String userEmail = authUtil.extractUserEmail(request);
+        alertSettingService.saveTargetAlertSettings(userEmail, currencyCode, targetRequestDTO);
+        return ResponseEntity.ok("목표 환율 알림 설정이 저장되었습니다.");
+    }
+    
+    @Operation(
+            summary = "일일 환율 알림 설정",
+            description = "특정 통화의 일일 환율 알림을 설정합니다. 매일 지정된 시간에 현재 환율 정보를 푸시 알림으로 발송합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "일일 환율 알림 설정 성공",
+                content = @Content(examples = @ExampleObject(value = "일일 환율 알림 설정이 저장되었습니다."))
+            ),
+            @ApiResponse(
+                responseCode = "400", 
+                description = "잘못된 요청 (지원하지 않는 통화 코드, 잘못된 시간 형식 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PostMapping("/alert/setting/{currencyCode}/daily")
+    public ResponseEntity<String> saveDailyAlertSettings(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            @RequestBody(
+                description = "일일 환율 알림 설정 정보",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertDailyRequestDTO.class),
+                    examples = @ExampleObject(
+                        name = "일일 환율 알림 설정 예시",
+                        value = """
+                        {
+                          "enabled": true,
+                          "alertTime": "09:00"
+                        }
+                        """
+                    )
+                )
+            )
+            @org.springframework.web.bind.annotation.RequestBody AlertDailyRequestDTO dailyRequestDTO,
+            HttpServletRequest request) {
+        
+        String userEmail = authUtil.extractUserEmail(request);
+        alertSettingService.saveDailyAlertSettings(userEmail, currencyCode, dailyRequestDTO);
+        return ResponseEntity.ok("일일 환율 알림 설정이 저장되었습니다.");
+    }
+    
+    @Operation(
+            summary = "목표 환율 알림 설정 조회",
+            description = "특정 통화의 목표 환율 알림 설정을 조회합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "목표 환율 알림 설정 조회 성공",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertTargetResponseDTO.class),
+                    examples = @ExampleObject(
+                        name = "목표 환율 알림 설정 조회 예시",
+                        value = """
+                        {
+                          "currency_code": "USD",
+                          "currency_name": "미국 달러",
+                          "flag_image_url": "/images/flags/us.png",
+                          "is_enabled": true,
+                          "target_price": 1350.70,
+                          "condition": "ABOVE"
+                        }
+                        """
+                    )
+                )
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자 또는 알림 설정을 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/alert/setting/{currencyCode}/target")
+    public ResponseEntity<AlertTargetResponseDTO> getTargetAlertSetting(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            HttpServletRequest request) {
+        Long userId = authUtil.extractUserId(request);
+        AlertTargetResponseDTO targetSetting = alertSettingService.getTargetAlertSetting(userId, currencyCode);
+        return ResponseEntity.ok(targetSetting);
+    }
+    
+    @Operation(
+            summary = "일일 환율 알림 설정 조회",
+            description = "특정 통화의 일일 환율 알림 설정을 조회합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "일일 환율 알림 설정 조회 성공",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertDailyResponseDTO.class),
+                    examples = @ExampleObject(
+                        name = "일일 환율 알림 설정 조회 예시",
+                        value = """
+                        {
+                          "currency_code": "USD",
+                          "currency_name": "미국 달러",
+                          "flag_image_url": "/images/flags/us.png",
+                          "is_enabled": true,
+                          "alert_time": "09:00:00"
+                        }
+                        """
+                    )
+                )
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자 또는 알림 설정을 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/alert/setting/{currencyCode}/daily")
+    public ResponseEntity<AlertDailyResponseDTO> getDailyAlertSetting(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            HttpServletRequest request) {
+        Long userId = authUtil.extractUserId(request);
+        AlertDailyResponseDTO dailySetting = alertSettingService.getDailyAlertSetting(userId, currencyCode);
+        return ResponseEntity.ok(dailySetting);
     }
 }

@@ -109,4 +109,26 @@ public class AlertSetting {
     public void toggleActive() {
         this.isActive = !this.isActive;
     }
+    
+    /**
+     * 목표 환율 알림 설정만 업데이트
+     */
+    public void updateTargetSettings(Boolean targetPricePush, BigDecimal targetPrice, String condition) {
+        this.targetPricePush = targetPricePush;
+        this.targetPrice = targetPrice;
+        this.targetPricePushHow = condition;
+        
+        // 목표 환율이 변경되면 달성 상태 초기화
+        if (targetPrice != null) {
+            this.targetAchieved = false;
+        }
+    }
+    
+    /**
+     * 일일 환율 알림 설정만 업데이트
+     */
+    public void updateDailySettings(Boolean todayExchangeRatePush, LocalTime alertTime) {
+        this.todayExchangeRatePush = todayExchangeRatePush;
+        this.todayExchangeRatePushTime = alertTime;
+    }
 }
