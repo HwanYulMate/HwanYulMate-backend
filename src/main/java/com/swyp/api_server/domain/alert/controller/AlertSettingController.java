@@ -6,6 +6,7 @@ import com.swyp.api_server.domain.alert.dto.AlertTargetRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertTargetResponseDTO;
 import com.swyp.api_server.domain.alert.dto.AlertDailyRequestDTO;
 import com.swyp.api_server.domain.alert.dto.AlertDailyResponseDTO;
+import com.swyp.api_server.domain.alert.dto.AlertSettingResultDTO;
 import com.swyp.api_server.domain.alert.service.AlertSettingService;
 import com.swyp.api_server.common.util.AuthUtil;
 import org.springframework.http.ResponseEntity;
@@ -212,7 +213,22 @@ public class AlertSettingController {
             @ApiResponse(
                 responseCode = "200", 
                 description = "목표 환율 알림 설정 성공",
-                content = @Content(examples = @ExampleObject(value = "목표 환율 알림이 활성화되었습니다."))
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertSettingResultDTO.class),
+                    examples = @ExampleObject(
+                        name = "목표 환율 알림 활성화 성공",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "목표 환율 알림이 활성화되었습니다.",
+                          "currency_code": "USD",
+                          "alert_type": "TARGET",
+                          "status": "ENABLED"
+                        }
+                        """
+                    )
+                )
             ),
             @ApiResponse(
                 responseCode = "400", 
@@ -236,7 +252,7 @@ public class AlertSettingController {
             )
     })
     @PostMapping("/alert/setting/{currencyCode}/target")
-    public ResponseEntity<String> enableTargetAlertSettings(
+    public ResponseEntity<AlertSettingResultDTO> enableTargetAlertSettings(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             @RequestBody(
@@ -260,7 +276,16 @@ public class AlertSettingController {
         
         String userEmail = authUtil.extractUserEmail(request);
         alertSettingService.enableTargetAlertSettings(userEmail, currencyCode, targetRequestDTO);
-        return ResponseEntity.ok("목표 환율 알림이 활성화되었습니다.");
+        
+        AlertSettingResultDTO result = AlertSettingResultDTO.builder()
+                .success(true)
+                .message("목표 환율 알림이 활성화되었습니다.")
+                .currencyCode(currencyCode)
+                .alertType("TARGET")
+                .status("ENABLED")
+                .build();
+                
+        return ResponseEntity.ok(result);
     }
     
     @Operation(
@@ -272,7 +297,22 @@ public class AlertSettingController {
             @ApiResponse(
                 responseCode = "200", 
                 description = "목표 환율 알림 비활성화 성공",
-                content = @Content(examples = @ExampleObject(value = "목표 환율 알림이 비활성화되었습니다."))
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertSettingResultDTO.class),
+                    examples = @ExampleObject(
+                        name = "목표 환율 알림 비활성화 성공",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "목표 환율 알림이 비활성화되었습니다.",
+                          "currency_code": "USD",
+                          "alert_type": "TARGET",
+                          "status": "DISABLED"
+                        }
+                        """
+                    )
+                )
             ),
             @ApiResponse(
                 responseCode = "401", 
@@ -291,14 +331,23 @@ public class AlertSettingController {
             )
     })
     @DeleteMapping("/alert/setting/{currencyCode}/target")
-    public ResponseEntity<String> disableTargetAlertSettings(
+    public ResponseEntity<AlertSettingResultDTO> disableTargetAlertSettings(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             HttpServletRequest request) {
         
         String userEmail = authUtil.extractUserEmail(request);
         alertSettingService.disableTargetAlertSettings(userEmail, currencyCode);
-        return ResponseEntity.ok("목표 환율 알림이 비활성화되었습니다.");
+        
+        AlertSettingResultDTO result = AlertSettingResultDTO.builder()
+                .success(true)
+                .message("목표 환율 알림이 비활성화되었습니다.")
+                .currencyCode(currencyCode)
+                .alertType("TARGET")
+                .status("DISABLED")
+                .build();
+                
+        return ResponseEntity.ok(result);
     }
     
     @Operation(
@@ -310,7 +359,22 @@ public class AlertSettingController {
             @ApiResponse(
                 responseCode = "200", 
                 description = "일일 환율 알림 설정 성공",
-                content = @Content(examples = @ExampleObject(value = "일일 환율 알림이 활성화되었습니다."))
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertSettingResultDTO.class),
+                    examples = @ExampleObject(
+                        name = "일일 환율 알림 활성화 성공",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "일일 환율 알림이 활성화되었습니다.",
+                          "currency_code": "USD",
+                          "alert_type": "DAILY",
+                          "status": "ENABLED"
+                        }
+                        """
+                    )
+                )
             ),
             @ApiResponse(
                 responseCode = "400", 
@@ -334,7 +398,7 @@ public class AlertSettingController {
             )
     })
     @PostMapping("/alert/setting/{currencyCode}/daily")
-    public ResponseEntity<String> enableDailyAlertSettings(
+    public ResponseEntity<AlertSettingResultDTO> enableDailyAlertSettings(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             @RequestBody(
@@ -357,7 +421,16 @@ public class AlertSettingController {
         
         String userEmail = authUtil.extractUserEmail(request);
         alertSettingService.enableDailyAlertSettings(userEmail, currencyCode, dailyRequestDTO);
-        return ResponseEntity.ok("일일 환율 알림이 활성화되었습니다.");
+        
+        AlertSettingResultDTO result = AlertSettingResultDTO.builder()
+                .success(true)
+                .message("일일 환율 알림이 활성화되었습니다.")
+                .currencyCode(currencyCode)
+                .alertType("DAILY")
+                .status("ENABLED")
+                .build();
+                
+        return ResponseEntity.ok(result);
     }
     
     @Operation(
@@ -369,7 +442,22 @@ public class AlertSettingController {
             @ApiResponse(
                 responseCode = "200", 
                 description = "일일 환율 알림 비활성화 성공",
-                content = @Content(examples = @ExampleObject(value = "일일 환율 알림이 비활성화되었습니다."))
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AlertSettingResultDTO.class),
+                    examples = @ExampleObject(
+                        name = "일일 환율 알림 비활성화 성공",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "일일 환율 알림이 비활성화되었습니다.",
+                          "currency_code": "USD",
+                          "alert_type": "DAILY",
+                          "status": "DISABLED"
+                        }
+                        """
+                    )
+                )
             ),
             @ApiResponse(
                 responseCode = "401", 
@@ -388,14 +476,23 @@ public class AlertSettingController {
             )
     })
     @DeleteMapping("/alert/setting/{currencyCode}/daily")
-    public ResponseEntity<String> disableDailyAlertSettings(
+    public ResponseEntity<AlertSettingResultDTO> disableDailyAlertSettings(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             HttpServletRequest request) {
         
         String userEmail = authUtil.extractUserEmail(request);
         alertSettingService.disableDailyAlertSettings(userEmail, currencyCode);
-        return ResponseEntity.ok("일일 환율 알림이 비활성화되었습니다.");
+        
+        AlertSettingResultDTO result = AlertSettingResultDTO.builder()
+                .success(true)
+                .message("일일 환율 알림이 비활성화되었습니다.")
+                .currencyCode(currencyCode)
+                .alertType("DAILY")
+                .status("DISABLED")
+                .build();
+                
+        return ResponseEntity.ok(result);
     }
     
     @Operation(
