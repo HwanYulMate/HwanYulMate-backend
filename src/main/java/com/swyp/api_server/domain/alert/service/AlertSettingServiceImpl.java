@@ -315,11 +315,21 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
         
+        // 지원하는 통화인지 먼저 확인
+        ExchangeList.ExchangeType exchangeType;
+        try {
+            exchangeType = ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST, "지원하지 않는 통화 코드입니다: " + currencyCode);
+        }
+        
         Optional<AlertSetting> alertSetting = alertSettingRepository.findByUserAndCurrencyCodeAndIsActiveTrue(user, currencyCode);
         if (alertSetting.isPresent()) {
             return convertToResponseDTO(alertSetting.get());
         } else {
-            throw new CustomException(ErrorCode.ALERT_SETTING_NOT_FOUND, "알림 설정을 찾을 수 없습니다: " + currencyCode);
+            // 설정이 없으면 기본값 반환
+            log.info("알림 설정이 없어 기본값 반환: 사용자={}, 통화={}", user.getEmail(), currencyCode);
+            return createDefaultAlertSettingDTO(exchangeType);
         }
     }
 
