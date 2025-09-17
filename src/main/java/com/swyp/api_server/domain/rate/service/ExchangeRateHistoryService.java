@@ -88,12 +88,8 @@ public class ExchangeRateHistoryService {
                 // 현재 데이터가 있는 경우
                 ExchangeRateHistory previous = previousRatesMap.get(currencyCode);
                 result.add(ExchangeRateWithChangeDto.of(current, previous));
-            } else {
-                // 현재 데이터가 없는 경우 기본값으로 생성
-                ExchangeRateWithChangeDto defaultDto = createDefaultExchangeRateDto(exchangeType);
-                result.add(defaultDto);
-                log.warn("통화 코드 {} 의 환율 데이터가 없어 기본값으로 설정합니다.", currencyCode);
             }
+            // 데이터가 없는 통화는 제외 (빈 배열 반환을 위해)
         }
         
         log.info("변동률 포함 환율 데이터 조회 완료: {} 건", result.size());
@@ -105,8 +101,17 @@ public class ExchangeRateHistoryService {
      */
     @Transactional(readOnly = true)
     public ExchangeRateWithChangeDto getRateWithChange(String currencyCode) {
+        // 지원하는 통화인지 먼저 확인
+        try {
+            com.swyp.api_server.domain.rate.ExchangeList.ExchangeType.valueOf(currencyCode.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("지원하지 않는 통화 코드: {}", currencyCode);
+            return null;
+        }
+        
         Optional<ExchangeRate> currentOpt = exchangeRateRepository.findLatestByCurrencyCode(currencyCode);
         if (currentOpt.isEmpty()) {
+            log.warn("통화 코드 {} 의 환율 데이터를 찾을 수 없습니다.", currencyCode);
             return null;
         }
 
@@ -198,21 +203,4 @@ public class ExchangeRateHistoryService {
         return deleteOldHistory(90);
     }
     
-    /**
-     * 환율 데이터가 없는 경우 기본값으로 ExchangeRateWithChangeDto 생성
-     */
-    private ExchangeRateWithChangeDto createDefaultExchangeRateDto(com.swyp.api_server.domain.rate.ExchangeList.ExchangeType exchangeType) {
-        String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        
-        return new ExchangeRateWithChangeDto(
-            exchangeType.getCode(),           // currencyCode
-            exchangeType.getLabel(),          // currencyName  
-            exchangeType.getFlagImageUrl(),   // flagImageUrl
-            BigDecimal.ZERO,                  // exchangeRate
-            currentDate,                      // baseDate
-            BigDecimal.ZERO,                  // changeAmount
-            0.0,                             // changePercent
-            "STABLE"                         // changeDirection
-        );
-    }
 }
