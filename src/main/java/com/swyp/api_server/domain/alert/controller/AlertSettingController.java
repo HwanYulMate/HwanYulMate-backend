@@ -205,14 +205,14 @@ public class AlertSettingController {
     
     @Operation(
             summary = "목표 환율 알림 설정",
-            description = "특정 통화의 목표 환율 알림을 설정합니다. 환율이 목표가격에 도달하면 푸시 알림을 발송합니다.",
+            description = "특정 통화의 목표 환율 알림을 활성화하고 설정합니다. 환율이 목표가격에 도달하면 푸시 알림을 발송합니다.",
             security = @SecurityRequirement(name = "BearerAuth")
     )
     @ApiResponses({
             @ApiResponse(
                 responseCode = "200", 
                 description = "목표 환율 알림 설정 성공",
-                content = @Content(examples = @ExampleObject(value = "목표 환율 알림 설정이 저장되었습니다."))
+                content = @Content(examples = @ExampleObject(value = "목표 환율 알림이 활성화되었습니다."))
             ),
             @ApiResponse(
                 responseCode = "400", 
@@ -236,7 +236,7 @@ public class AlertSettingController {
             )
     })
     @PostMapping("/alert/setting/{currencyCode}/target")
-    public ResponseEntity<String> saveTargetAlertSettings(
+    public ResponseEntity<String> enableTargetAlertSettings(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             @RequestBody(
@@ -248,7 +248,6 @@ public class AlertSettingController {
                         name = "목표 환율 알림 설정 예시",
                         value = """
                         {
-                          "enabled": true,
                           "targetPrice": 1350.7,
                           "condition": "ABOVE"
                         }
@@ -260,20 +259,58 @@ public class AlertSettingController {
             HttpServletRequest request) {
         
         String userEmail = authUtil.extractUserEmail(request);
-        alertSettingService.saveTargetAlertSettings(userEmail, currencyCode, targetRequestDTO);
-        return ResponseEntity.ok("목표 환율 알림 설정이 저장되었습니다.");
+        alertSettingService.enableTargetAlertSettings(userEmail, currencyCode, targetRequestDTO);
+        return ResponseEntity.ok("목표 환율 알림이 활성화되었습니다.");
+    }
+    
+    @Operation(
+            summary = "목표 환율 알림 비활성화",
+            description = "특정 통화의 목표 환율 알림을 비활성화합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "목표 환율 알림 비활성화 성공",
+                content = @Content(examples = @ExampleObject(value = "목표 환율 알림이 비활성화되었습니다."))
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @DeleteMapping("/alert/setting/{currencyCode}/target")
+    public ResponseEntity<String> disableTargetAlertSettings(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            HttpServletRequest request) {
+        
+        String userEmail = authUtil.extractUserEmail(request);
+        alertSettingService.disableTargetAlertSettings(userEmail, currencyCode);
+        return ResponseEntity.ok("목표 환율 알림이 비활성화되었습니다.");
     }
     
     @Operation(
             summary = "일일 환율 알림 설정",
-            description = "특정 통화의 일일 환율 알림을 설정합니다. 매일 지정된 시간에 현재 환율 정보를 푸시 알림으로 발송합니다.",
+            description = "특정 통화의 일일 환율 알림을 활성화하고 설정합니다. 매일 지정된 시간에 현재 환율 정보를 푸시 알림으로 발송합니다.",
             security = @SecurityRequirement(name = "BearerAuth")
     )
     @ApiResponses({
             @ApiResponse(
                 responseCode = "200", 
                 description = "일일 환율 알림 설정 성공",
-                content = @Content(examples = @ExampleObject(value = "일일 환율 알림 설정이 저장되었습니다."))
+                content = @Content(examples = @ExampleObject(value = "일일 환율 알림이 활성화되었습니다."))
             ),
             @ApiResponse(
                 responseCode = "400", 
@@ -297,7 +334,7 @@ public class AlertSettingController {
             )
     })
     @PostMapping("/alert/setting/{currencyCode}/daily")
-    public ResponseEntity<String> saveDailyAlertSettings(
+    public ResponseEntity<String> enableDailyAlertSettings(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             @RequestBody(
@@ -309,7 +346,6 @@ public class AlertSettingController {
                         name = "일일 환율 알림 설정 예시",
                         value = """
                         {
-                          "enabled": true,
                           "alertTime": "09:00"
                         }
                         """
@@ -320,8 +356,46 @@ public class AlertSettingController {
             HttpServletRequest request) {
         
         String userEmail = authUtil.extractUserEmail(request);
-        alertSettingService.saveDailyAlertSettings(userEmail, currencyCode, dailyRequestDTO);
-        return ResponseEntity.ok("일일 환율 알림 설정이 저장되었습니다.");
+        alertSettingService.enableDailyAlertSettings(userEmail, currencyCode, dailyRequestDTO);
+        return ResponseEntity.ok("일일 환율 알림이 활성화되었습니다.");
+    }
+    
+    @Operation(
+            summary = "일일 환율 알림 비활성화",
+            description = "특정 통화의 일일 환율 알림을 비활성화합니다.",
+            security = @SecurityRequirement(name = "BearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                responseCode = "200", 
+                description = "일일 환율 알림 비활성화 성공",
+                content = @Content(examples = @ExampleObject(value = "일일 환율 알림이 비활성화되었습니다."))
+            ),
+            @ApiResponse(
+                responseCode = "401", 
+                description = "인증 필요 (유효하지 않은 토큰 등)",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404", 
+                description = "사용자를 찾을 수 없습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "500", 
+                description = "서버에서 예상치 못한 오류가 발생했습니다",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @DeleteMapping("/alert/setting/{currencyCode}/daily")
+    public ResponseEntity<String> disableDailyAlertSettings(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            HttpServletRequest request) {
+        
+        String userEmail = authUtil.extractUserEmail(request);
+        alertSettingService.disableDailyAlertSettings(userEmail, currencyCode);
+        return ResponseEntity.ok("일일 환율 알림이 비활성화되었습니다.");
     }
     
     @Operation(

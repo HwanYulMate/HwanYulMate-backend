@@ -42,14 +42,24 @@ public interface AlertSettingService {
     void sendTodayExchangeRateAlerts();
     
     /**
-     * 목표 환율 알림 설정 저장/업데이트
+     * 목표 환율 알림 활성화 및 설정
      */
-    void saveTargetAlertSettings(String userEmail, String currencyCode, AlertTargetRequestDTO targetSettings);
+    void enableTargetAlertSettings(String userEmail, String currencyCode, AlertTargetRequestDTO targetSettings);
     
     /**
-     * 일일 환율 알림 설정 저장/업데이트
+     * 목표 환율 알림 비활성화
      */
-    void saveDailyAlertSettings(String userEmail, String currencyCode, AlertDailyRequestDTO dailySettings);
+    void disableTargetAlertSettings(String userEmail, String currencyCode);
+    
+    /**
+     * 일일 환율 알림 활성화 및 설정
+     */
+    void enableDailyAlertSettings(String userEmail, String currencyCode, AlertDailyRequestDTO dailySettings);
+    
+    /**
+     * 일일 환율 알림 비활성화
+     */
+    void disableDailyAlertSettings(String userEmail, String currencyCode);
     
     /**
      * 목표 환율 알림 설정 조회
