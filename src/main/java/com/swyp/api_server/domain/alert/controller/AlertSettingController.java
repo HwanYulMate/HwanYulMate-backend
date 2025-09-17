@@ -198,20 +198,22 @@ public class AlertSettingController {
                 description = "알림 설정 조회 성공",
                 content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = AlertSettingResponseDTO.class),
+                    array = @ArraySchema(schema = @Schema(implementation = AlertSettingResponseDTO.class)),
                     examples = @ExampleObject(
-                        name = "USD 알림 설정 예시",
+                        name = "USD 알림 설정 예시 (배열)",
                         value = """
-                        {
-                          "currency_code": "USD",
-                          "currency_name": "미국 달러",
-                          "flag_image_url": "/images/flags/us.png",
-                          "is_target_price_enabled": true,
-                          "is_daily_alert_enabled": false,
-                          "target_price": 1400.00,
-                          "target_price_push_how": "ABOVE",
-                          "daily_alert_time": "09:00:00"
-                        }
+                        [
+                          {
+                            "currency_code": "USD",
+                            "currency_name": "미국 달러",
+                            "flag_image_url": "/images/flags/us.png",
+                            "is_target_price_enabled": true,
+                            "is_daily_alert_enabled": false,
+                            "target_price": 1400.00,
+                            "target_price_push_how": "ABOVE",
+                            "daily_alert_time": "09:00:00"
+                          }
+                        ]
                         """
                     )
                 )
@@ -233,12 +235,12 @@ public class AlertSettingController {
             )
     })
     @GetMapping("/alert/setting/{currencyCode}")
-    public ResponseEntity<AlertSettingResponseDTO> getAlertSetting(
+    public ResponseEntity<List<AlertSettingResponseDTO>> getAlertSetting(
             @Parameter(description = "통화 코드", example = "USD", required = true)
             @PathVariable String currencyCode,
             HttpServletRequest request) {
         Long userId = authUtil.extractUserId(request);
         AlertSettingResponseDTO alertSetting = alertSettingService.getAlertSetting(userId, currencyCode);
-        return ResponseEntity.ok(alertSetting);
+        return ResponseEntity.ok(List.of(alertSetting));
     }
 }
