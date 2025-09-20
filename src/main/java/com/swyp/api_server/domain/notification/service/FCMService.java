@@ -117,7 +117,7 @@ public class FCMService {
         
         log.error("FCM 전송 최종 실패: {}, 에러코드={}, 재시도완료={}/{}", 
                 deviceToken, errorCode, retryCount, Constants.Fcm.MAX_RETRY_COUNT);
-        totalFailCount++;
+        totalFailCount.incrementAndGet();
         return false;
     }
 
@@ -307,12 +307,12 @@ public class FCMService {
      */
     public Map<String, Long> getStatistics() {
         Map<String, Long> stats = new HashMap<>();
-        stats.put("totalSent", totalSentCount);
-        stats.put("totalFailed", totalFailCount);
-        stats.put("totalRetry", totalRetryCount);
+        stats.put("totalSent", totalSentCount.get());
+        stats.put("totalFailed", totalFailCount.get());
+        stats.put("totalRetry", totalRetryCount.get());
         
-        double successRate = totalSentCount + totalFailCount > 0 ?
-                (double) totalSentCount / (totalSentCount + totalFailCount) * 100 : 0;
+        double successRate = totalSentCount.get() + totalFailCount.get() > 0 ?
+                (double) totalSentCount.get() / (totalSentCount.get() + totalFailCount.get()) * 100 : 0;
         stats.put("successRate", (long) successRate);
         
         return stats;
@@ -322,9 +322,9 @@ public class FCMService {
      * 통계 초기화 (주기적으로 호출)
      */
     public void resetStatistics() {
-        totalSentCount = 0;
-        totalFailCount = 0;
-        totalRetryCount = 0;
+        totalSentCount.set(0);
+        totalFailCount.set(0);
+        totalRetryCount.set(0);
         log.info("FCM 통계가 초기화되었습니다.");
     }
     
@@ -332,13 +332,13 @@ public class FCMService {
      * 통계 로그 출력
      */
     public void logStatistics() {
-        if (totalSentCount + totalFailCount > 0) {
-            double successRate = (double) totalSentCount / (totalSentCount + totalFailCount) * 100;
+        if (totalSentCount.get() + totalFailCount.get() > 0) {
+            double successRate = (double) totalSentCount.get() / (totalSentCount.get() + totalFailCount.get()) * 100;
             log.info("=== FCM 전송 통계 ===");
-            log.info("총 전송: {} 건", totalSentCount + totalFailCount);
-            log.info("성공: {} 건", totalSentCount);
-            log.info("실패: {} 건", totalFailCount);
-            log.info("재시도: {} 건", totalRetryCount);
+            log.info("총 전송: {} 건", totalSentCount.get() + totalFailCount.get());
+            log.info("성공: {} 건", totalSentCount.get());
+            log.info("실패: {} 건", totalFailCount.get());
+            log.info("재시도: {} 건", totalRetryCount.get());
             log.info("성공률: {:.1f}%", successRate);
             
             // 실패율이 30% 이상이면 경고
