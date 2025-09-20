@@ -127,7 +127,7 @@ public class UserController {
      * @param request HTTP 요청 (Authorization 헤더에서 Access Token 추출)
      * @return 로그아웃 성공 메시지
      */
-    @Operation(summary = "로그아웃", description = "사용자의 Access Token을 무효화하여 로그아웃 처리합니다. Apple 사용자의 경우 자동으로 Apple 토큰도 무효화됩니다.",
+    @Operation(summary = "로그아웃", description = "사용자의 Access Token을 무효화하여 로그아웃 처리합니다. Apple 사용자의 경우 자동으로 Apple 토큰도 무효화됩니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
                security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
@@ -160,7 +160,7 @@ public class UserController {
      * @return 탈퇴 처리 결과 메시지
      */
     @Operation(summary = "회원 탈퇴", 
-        description = "회원 탈퇴를 처리합니다. Apple 사용자의 경우 자동으로 Apple 연동도 해제됩니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다.",
+        description = "회원 탈퇴를 처리합니다. Apple 사용자의 경우 자동으로 Apple 연동도 해제됩니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
@@ -308,7 +308,7 @@ public class UserController {
      * @return 로그아웃 성공 메시지
      */
     @Operation(summary = "Apple 로그아웃", 
-        description = "Apple 사용자의 로그아웃을 처리합니다. Apple refresh token을 무효화하고 연동을 해제합니다.",
+        description = "Apple 사용자의 로그아웃을 처리합니다. Apple refresh token을 무효화하고 연동을 해제합니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
@@ -364,7 +364,7 @@ public class UserController {
      * @return 탈퇴 처리 결과 메시지
      */
     @Operation(summary = "Apple 회원 탈퇴", 
-        description = "Apple 사용자의 회원 탈퇴를 처리합니다. Apple 토큰을 무효화하고 연동을 해제한 후 30일간 데이터를 보관합니다.",
+        description = "Apple 사용자의 회원 탈퇴를 처리합니다. Apple 토큰을 무효화하고 연동을 해제한 후 30일간 데이터를 보관합니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(

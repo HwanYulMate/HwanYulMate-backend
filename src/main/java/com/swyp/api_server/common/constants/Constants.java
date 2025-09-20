@@ -50,6 +50,7 @@ public final class Constants {
         
         // 캐시 이름
         public static final String EXCHANGE_RATES = "exchangeRates";
+        public static final String EXCHANGE_RATE = "exchange_rate";  // 개별 통화 캐시
         public static final String REALTIME_RATE = "realtimeRate";
         public static final String HISTORICAL_RATE = "historicalRate";
         public static final String EXCHANGE_NEWS = "exchangeNews";

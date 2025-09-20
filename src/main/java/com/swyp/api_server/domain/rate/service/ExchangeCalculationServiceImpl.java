@@ -5,6 +5,7 @@ import com.swyp.api_server.entity.BankExchangeInfo;
 import com.swyp.api_server.domain.rate.dto.request.ExchangeCalculationRequestDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResultResponseDTO;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResponseDTO;
+import com.swyp.api_server.domain.rate.policy.ExchangeCalculationPolicy;
 import com.swyp.api_server.exception.CustomException;
 import com.swyp.api_server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     
     private final ExchangeRateService exchangeRateService;
     private final BankExchangeInfoService bankInfoService;
+    private final ExchangeCalculationPolicy calculationPolicy;
     
     @Override
     @Cacheable(value = "exchangeCalculation", key = "#request.currencyCode + '_' + #request.amount + '_' + #request.direction")
@@ -114,126 +116,46 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
-     * 단일 은행의 환전 결과 계산
+     * 단일 은행의 환전 결과 계산 (Policy 패턴 적용)
      */
     private ExchangeResultResponseDTO calculateSingleExchange(
             ExchangeCalculationRequestDTO request, BankExchangeInfo bankInfo, ExchangeRateInfo rateInfo) {
         
-        // 기준 환율에 스프레드 적용
-        BigDecimal marketRate = rateInfo.getRate();  // 실시간 환율 사용
-        BigDecimal spreadAmount = marketRate.multiply(bankInfo.getSpreadRate())
-            .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+        BigDecimal marketRate = rateInfo.getRate();
         
-        BigDecimal spreadAppliedRate;
-        if (request.getDirection() == ExchangeCalculationRequestDTO.ExchangeDirection.FOREIGN_TO_KRW) {
-            // 외화 → 원화 (살 때): 기준환율 - 스프레드
-            spreadAppliedRate = marketRate.subtract(spreadAmount);
-        } else {
-            // 원화 → 외화 (팔 때): 기준환율 + 스프레드  
-            spreadAppliedRate = marketRate.add(spreadAmount);
+        // Policy를 통한 계산 실행
+        ExchangeCalculationPolicy.CalculationResult result = calculationPolicy.calculate(
+            marketRate, request.getAmount(), request.getDirection(), bankInfo);
+        
+        // 최소/최대 금액 검증
+        validateExchangeAmountWithFee(request.getAmount(), result.getExchangedAmount(), 
+                                    result.getTotalFee(), bankInfo);
+        
+        // 결과 DTO 생성
+        String description = bankInfo.getDescription();
+        if (!result.isViable() && result.getWarningMessage() != null) {
+            description += " (" + result.getWarningMessage() + ")";
         }
-        
-        // 우대율 적용
-        BigDecimal preferentialDiscount = spreadAmount.multiply(bankInfo.getPreferentialRate())
-            .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
-            
-        BigDecimal finalRate;
-        if (request.getDirection() == ExchangeCalculationRequestDTO.ExchangeDirection.FOREIGN_TO_KRW) {
-            // 외화 → 원화: 우대율만큼 더 많이 받음
-            finalRate = spreadAppliedRate.add(preferentialDiscount);
-        } else {
-            // 원화 → 외화: 우대율만큼 더 적게 냄
-            finalRate = spreadAppliedRate.subtract(preferentialDiscount);
-        }
-        
-        // 환전 금액 계산 (방향별 계산 로직)
-        BigDecimal exchangedAmount;
-        
-        if (request.getDirection() == ExchangeCalculationRequestDTO.ExchangeDirection.FOREIGN_TO_KRW) {
-            // 외화 → 원화: 외화 × 환율 = 원화
-            exchangedAmount = request.getAmount().multiply(finalRate);
-        } else {
-            // 원화 → 외화: 원화 ÷ 환율 = 외화
-            exchangedAmount = request.getAmount().divide(finalRate, 4, RoundingMode.HALF_UP);
-        }
-        
-        // 수수료 계산
-        ExchangeResultResponseDTO.FeeDetail feeDetail = calculateFee(exchangedAmount, bankInfo);
-        BigDecimal totalFee = feeDetail.getFixedFee().add(feeDetail.getRateBasedFee());
-        
-        // 수수료가 환전 금액을 초과하는 경우 처리
-        if (totalFee.compareTo(exchangedAmount) >= 0) {
-            log.warn("수수료({})가 환전 금액({})을 초과합니다. 은행: {}, 입력금액: {}", 
-                totalFee, exchangedAmount, bankInfo.getBankName(), request.getAmount());
-            
-            // 최종 금액을 0으로 설정하고 경고 메시지 포함
-            BigDecimal finalAmount = BigDecimal.ZERO;
-            
-            return ExchangeResultResponseDTO.builder()
-                .bankName(bankInfo.getBankName())
-                .bankCode(bankInfo.getBankCode())
-                .baseRate(marketRate)
-                .appliedRate(finalRate)
-                .preferentialRate(bankInfo.getPreferentialRate())
-                .spreadRate(bankInfo.getSpreadRate())
-                .totalFee(totalFee)
-                .feeDetail(feeDetail)
-                .finalAmount(finalAmount)
-                .inputAmount(request.getAmount())
-                .currencyCode(request.getCurrencyCode())
-                .flagImageUrl(getFlagImageUrl(request.getCurrencyCode()))
-                .isOnlineAvailable(bankInfo.getIsOnlineAvailable())
-                .description(bankInfo.getDescription() + " (수수료가 환전금액을 초과)")
-                .baseDate(rateInfo.getBaseDate())
-                .build();
-        }
-        
-        // 최종 금액 (수수료 제외)
-        BigDecimal finalAmount = exchangedAmount.subtract(totalFee);
-        
-        // 음수 방지 (추가 안전장치)
-        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
-            log.warn("계산된 최종 금액이 음수입니다. 0으로 조정. 은행: {}, 계산값: {}", 
-                bankInfo.getBankName(), finalAmount);
-            finalAmount = BigDecimal.ZERO;
-        }
-        
-        // 최소/최대 금액 검증 (수수료 포함한 실제 필요 금액 기준)
-        validateExchangeAmountWithFee(request.getAmount(), exchangedAmount, totalFee, bankInfo);
         
         return ExchangeResultResponseDTO.builder()
             .bankName(bankInfo.getBankName())
             .bankCode(bankInfo.getBankCode())
             .baseRate(marketRate)
-            .appliedRate(finalRate)
+            .appliedRate(result.getAppliedRate())
             .preferentialRate(bankInfo.getPreferentialRate())
             .spreadRate(bankInfo.getSpreadRate())
-            .totalFee(totalFee)
-            .feeDetail(feeDetail)
-            .finalAmount(finalAmount)
+            .totalFee(result.getTotalFee())
+            .feeDetail(result.getFeeDetail())
+            .finalAmount(result.getFinalAmount())
             .inputAmount(request.getAmount())
             .currencyCode(request.getCurrencyCode())
             .flagImageUrl(getFlagImageUrl(request.getCurrencyCode()))
             .isOnlineAvailable(bankInfo.getIsOnlineAvailable())
-            .description(bankInfo.getDescription())
+            .description(description)
             .baseDate(rateInfo.getBaseDate())
             .build();
     }
     
-    /**
-     * 수수료 계산
-     */
-    private ExchangeResultResponseDTO.FeeDetail calculateFee(BigDecimal amount, BankExchangeInfo bankInfo) {
-        BigDecimal fixedFee = bankInfo.getFixedFee();
-        BigDecimal rateBasedFee = amount.multiply(bankInfo.getFeeRate())
-            .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        
-        return ExchangeResultResponseDTO.FeeDetail.builder()
-            .fixedFee(fixedFee)
-            .feeRate(bankInfo.getFeeRate())
-            .rateBasedFee(rateBasedFee)
-            .build();
-    }
     
     /**
      * 현재 환율 및 기준 날짜 조회 - DB 전용 (API 호출 없음)
@@ -243,14 +165,8 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
         try {
             log.info("계산기용 환율 조회 (캐시/DB): {}", currencyCode);
             
-            // 캐시된 환율 데이터 사용 (API 호출 없음)
-            List<ExchangeResponseDTO> rates = exchangeRateService.getAllExchangeRates();
-            
-            ExchangeResponseDTO rateData = rates.stream()
-                .filter(rate -> rate.getCurrencyCode().equals(currencyCode))
-                .findFirst()
-                .orElseThrow(() -> new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, 
-                    "환율 정보를 찾을 수 없습니다. 스케줄러 동작을 확인해주세요: " + currencyCode));
+            // 개별 통화 캐시 활용 (더 효율적)
+            ExchangeResponseDTO rateData = exchangeRateService.getSingleExchangeRate(currencyCode);
             
             return new ExchangeRateInfo(rateData.getExchangeRate(), rateData.getBaseDate());
         } catch (CustomException e) {

@@ -15,9 +15,16 @@ public interface ExchangeRateService {
     
     /**
      * 모든 통화의 실시간 환율 목록 조회
-     * @return 14개국 환율 정보 리스트
+     * @return 12개국 환율 정보 리스트
      */
     List<ExchangeResponseDTO> getAllExchangeRates();
+    
+    /**
+     * 특정 통화의 환율 조회 (개별 캐시)
+     * @param currencyCode 통화 코드 (USD, EUR, CNY 등)
+     * @return 특정 통화의 환율 정보
+     */
+    ExchangeResponseDTO getSingleExchangeRate(String currencyCode);
     
     /**
      * 특정 통화의 실시간 환율 및 등락률 조회

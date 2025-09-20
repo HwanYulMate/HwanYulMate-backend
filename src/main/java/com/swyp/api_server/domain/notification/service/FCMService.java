@@ -6,6 +6,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -17,10 +18,10 @@ import java.util.stream.Collectors;
 @Log4j2
 public class FCMService {
     
-    // 통계용 카운터
-    private long totalSentCount = 0;
-    private long totalFailCount = 0;
-    private long totalRetryCount = 0;
+    // 통계용 카운터 (thread-safe)
+    private final AtomicLong totalSentCount = new AtomicLong(0);
+    private final AtomicLong totalFailCount = new AtomicLong(0);
+    private final AtomicLong totalRetryCount = new AtomicLong(0);
 
     /**
      * 단일 디바이스에 푸시 알림 전송 (재시도 로직 포함)
@@ -61,9 +62,9 @@ public class FCMService {
             Message message = messageBuilder.build();
             String response = FirebaseMessaging.getInstance().send(message);
             
-            totalSentCount++;
+            totalSentCount.incrementAndGet();
             if (retryCount > 0) {
-                totalRetryCount++;
+                totalRetryCount.incrementAndGet();
                 log.info("FCM 재시도 전송 성공: {}, 재시도={}, 응답={}", deviceToken, retryCount, response);
             } else {
                 log.info("FCM 전송 성공: {}, 응답={}", deviceToken, response);
@@ -74,7 +75,7 @@ public class FCMService {
             return handleFirebaseException(deviceToken, title, body, data, retryCount, e);
         } catch (Exception e) {
             log.error("FCM 전송 중 예상치 못한 오류: {}, 재시도={}, 오류={}", deviceToken, retryCount, e.getMessage());
-            totalFailCount++;
+            totalFailCount.incrementAndGet();
             return false;
         }
     }
@@ -91,7 +92,7 @@ public class FCMService {
         if (errorCode == MessagingErrorCode.INVALID_ARGUMENT ||
             errorCode == MessagingErrorCode.UNREGISTERED) {
             log.warn("FCM 토큰 무효 (재시도 안함): {}, 에러코드={}", deviceToken, errorCode);
-            totalFailCount++;
+            totalFailCount.incrementAndGet();
             return false;
         }
         
@@ -238,11 +239,11 @@ public class FCMService {
             int successCount = response.getSuccessCount();
             int failureCount = response.getFailureCount();
             
-            totalSentCount += successCount;
-            totalFailCount += failureCount;
+            totalSentCount.addAndGet(successCount);
+            totalFailCount.addAndGet(failureCount);
             
             if (retryCount > 0) {
-                totalRetryCount += successCount;
+                totalRetryCount.addAndGet(successCount);
                 log.info("FCM 배치 재시도 완료: 성공={}, 실패={}, 재시도={}", 
                         successCount, failureCount, retryCount);
             } else {

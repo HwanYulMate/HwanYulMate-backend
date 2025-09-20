@@ -25,6 +25,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AppleTokenValidator appleTokenValidator;
+    private final UserAsyncService userAsyncService;
 
     @Override
     public boolean signUp(SignRequestDto signRequestDto) {
@@ -130,24 +131,25 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
         }
 
-        // Apple 사용자인 경우 Apple 토큰 무효화 및 연동 해제
+        // 1. 먼저 DB 트랜잭션 처리 (30일 보관 탈퇴)
+        user.withdraw(reason);
+        
+        // Apple 사용자인 경우 refresh token 삭제 (DB 업데이트)
+        String appleRefreshToken = null;
         if (user.isAppleUser()) {
-            if (user.getAppleRefreshToken() != null) {
-                appleTokenValidator.revokeAppleToken(user.getAppleRefreshToken(), user.getProviderId());
-            }
-            appleTokenValidator.disconnectAppleAccount(user.getProviderId());
-            
-            // Apple refresh token 삭제
+            appleRefreshToken = user.getAppleRefreshToken();
             user.setAppleRefreshToken(null);
-            
-            log.info("Apple 사용자 탈퇴 처리 (자동 감지): {}", email);
+            log.info("Apple 사용자 탈퇴 처리: {}", email);
         } else {
             log.info("일반 사용자 탈퇴 처리: {}", email);
         }
-
-        // 30일 보관 탈퇴 처리 (이유 포함)
-        user.withdraw(reason);
+        
         userRepository.save(user);
+        
+        // 2. 외부 API 호출은 비동기로 처리 (트랜잭션 커밋 후)
+        if (user.isAppleUser() && appleRefreshToken != null) {
+            userAsyncService.revokeAppleTokenAsync(appleRefreshToken, user.getProviderId(), email);
+        }
         
         log.info("회원 탈퇴 처리 완료: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
     }
@@ -163,11 +165,12 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
                 
         if (user.isAppleUser() && appleRefreshToken != null && !appleRefreshToken.trim().isEmpty()) {
-            appleTokenValidator.revokeAppleToken(appleRefreshToken, user.getProviderId());
-            
-            // Apple refresh token 삭제
+            // 1. 먼저 DB에서 refresh token 삭제 (트랜잭션 처리)
             user.setAppleRefreshToken(null);
             userRepository.save(user);
+            
+            // 2. Apple 서버 토큰 무효화는 비동기로 처리
+            userAsyncService.revokeAppleTokenForLogoutAsync(appleRefreshToken, user.getProviderId(), email);
         }
         
         log.info("Apple 사용자 로그아웃 완료: {}", email);
@@ -183,20 +186,25 @@ public class UserServiceImpl implements UserService {
             throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
         }
 
-        // Apple 사용자인 경우 Apple 토큰 무효화 및 연동 해제
+        // 1. 먼저 DB 트랜잭션 처리 (30일 보관 탈퇴)
+        user.withdraw(reason);
+        
+        // Apple 사용자인 경우 refresh token 삭제 (DB 업데이트)
+        String storedAppleRefreshToken = null;
         if (user.isAppleUser()) {
-            if (appleRefreshToken != null && !appleRefreshToken.trim().isEmpty()) {
-                appleTokenValidator.revokeAppleToken(appleRefreshToken, user.getProviderId());
-            }
-            appleTokenValidator.disconnectAppleAccount(user.getProviderId());
-            
-            // Apple refresh token 삭제
+            storedAppleRefreshToken = user.getAppleRefreshToken();
             user.setAppleRefreshToken(null);
         }
-
-        // 30일 보관 탈퇴 처리 (이유 포함)
-        user.withdraw(reason);
+        
         userRepository.save(user);
+        
+        // 2. 외부 API 호출은 비동기로 처리 (트랜잭션 커밋 후)
+        if (user.isAppleUser()) {
+            String tokenToRevoke = appleRefreshToken != null ? appleRefreshToken : storedAppleRefreshToken;
+            if (tokenToRevoke != null) {
+                userAsyncService.revokeAppleTokenAsync(tokenToRevoke, user.getProviderId(), email);
+            }
+        }
         
         log.info("Apple 사용자 탈퇴 처리: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
     }

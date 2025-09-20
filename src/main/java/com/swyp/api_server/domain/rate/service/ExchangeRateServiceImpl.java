@@ -61,6 +61,31 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     }
     
     /**
+     * 특정 통화의 환율 조회 (개별 캐시)
+     * - 통화별 세분화된 캐시로 효율성 향상
+     */
+    @Cacheable(value = "exchange_rate", key = "#currencyCode", cacheManager = "cacheManager")
+    public ExchangeResponseDTO getSingleExchangeRate(String currencyCode) {
+        try {
+            log.info("개별 통화 환율 조회: {}", currencyCode);
+            
+            List<ExchangeResponseDTO> allRates = getAllExchangeRatesFromDatabase();
+            return allRates.stream()
+                .filter(rate -> rate.getCurrencyCode().equals(currencyCode))
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, 
+                    "환율 정보를 찾을 수 없습니다: " + currencyCode));
+                    
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("개별 환율 조회 실패: {}", currencyCode, e);
+            throw new CustomException(ErrorCode.EXCHANGE_RATE_API_ERROR, 
+                "환율 조회 중 오류가 발생했습니다", e);
+        }
+    }
+    
+    /**
      * 캐시 없이 환율 데이터 조회 - DB 전용 (API 호출 없음)
      * 스케줄러가 수집한 DB 데이터만 조회
      */
