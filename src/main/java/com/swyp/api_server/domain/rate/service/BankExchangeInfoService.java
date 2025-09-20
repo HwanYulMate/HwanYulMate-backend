@@ -55,4 +55,14 @@ public interface BankExchangeInfoService {
      * 온라인 환전 가능한 은행 목록
      */
     List<BankExchangeInfoResponseDTO> getOnlineAvailableBanks();
+    
+    /**
+     * 은행명으로 정보 수정
+     */
+    BankExchangeInfoResponseDTO updateBankInfoByName(String bankName, BankExchangeInfoRequestDTO requestDTO);
+    
+    /**
+     * 모든 은행 정보 캐시 무효화
+     */
+    void evictAllBankCache();
 }

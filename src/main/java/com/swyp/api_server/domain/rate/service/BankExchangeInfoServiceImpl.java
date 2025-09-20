@@ -169,4 +169,37 @@ public class BankExchangeInfoServiceImpl implements BankExchangeInfoService {
                 "이미 등록된 은행코드입니다: " + bankCode);
         }
     }
+    
+    /**
+     * 은행명으로 정보 수정
+     */
+    @Override
+    @Transactional
+    @CacheEvict(value = Constants.Cache.BANK_EXCHANGE_INFO, allEntries = true)
+    public BankExchangeInfoResponseDTO updateBankInfoByName(String bankName, BankExchangeInfoRequestDTO requestDTO) {
+        BankExchangeInfo bank = findActiveBankByName(bankName);
+        
+        // 중복 검증 (자기 자신 제외)
+        if (!bank.getBankName().equals(requestDTO.getBankName())) {
+            validateDuplicateBankName(requestDTO.getBankName(), bank.getId());
+        }
+        if (!bank.getBankCode().equals(requestDTO.getBankCode())) {
+            validateDuplicateBankCode(requestDTO.getBankCode(), bank.getId());
+        }
+        
+        // MapStruct를 사용한 업데이트
+        bankMapper.updateEntityFromRequestDTO(requestDTO, bank);
+        
+        log.info("은행 정보 수정 완료 (은행명으로): {} -> {}", bankName, bank.getBankName());
+        return bankMapper.toResponseDTO(bank);
+    }
+    
+    /**
+     * 모든 은행 정보 캐시 무효화
+     */
+    @Override
+    @CacheEvict(value = Constants.Cache.BANK_EXCHANGE_INFO, allEntries = true)
+    public void evictAllBankCache() {
+        log.info("은행 정보 캐시 무효화 완료");
+    }
 }
