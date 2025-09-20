@@ -62,27 +62,23 @@ public interface BankExchangeInfoMapper {
     BankExchangeInfo toEntity(BankExchangeInfoRequestDTO requestDTO);
     
     /**
-     * RequestDTO로 기존 Entity 업데이트 (수정 시)
+     * RequestDTO로 기존 Entity 업데이트 (수정 시) - 관리자용
      * @param requestDTO 요청 DTO
      * @param target 업데이트할 기존 엔티티
      */
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "bankName", ignore = true) // 은행명은 수정하지 않음
-    @Mapping(target = "bankCode", ignore = true) // 은행코드는 수정하지 않음
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "isActive", ignore = true) // 활성 상태는 별도 메서드로 관리
     void updateEntityFromRequestDTO(BankExchangeInfoRequestDTO requestDTO, @MappingTarget BankExchangeInfo target);
     
     /**
-     * 부분 업데이트 (null 값은 무시)
+     * 부분 업데이트 (null 값은 무시) - 관리자용
      * @param requestDTO 요청 DTO
      * @param target 업데이트할 기존 엔티티
      */
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "bankName", ignore = true)
-    @Mapping(target = "bankCode", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "isActive", ignore = true)

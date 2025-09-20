@@ -19,29 +19,29 @@ public class BankExchangeInfoRequestDTO {
     
     @NotBlank(message = "은행명은 필수입니다.")
     @Size(max = 50, message = "은행명은 50자 이내여야 합니다.")
-    @Schema(description = "은행명", example = "KB국민은행", required = true)
+    @Schema(description = "은행명", example = "우리은행", required = true)
     private String bankName;
     
     @NotBlank(message = "은행 코드는 필수입니다.")
     @Size(max = 10, message = "은행 코드는 10자 이내여야 합니다.")
-    @Schema(description = "은행 코드", example = "004", required = true)
+    @Schema(description = "은행 코드", example = "020", required = true)
     private String bankCode;
     
     @NotNull(message = "스프레드율은 필수입니다.")
     @DecimalMin(value = "0.0", message = "스프레드율은 0 이상이어야 합니다.")
     @DecimalMax(value = "10.0", message = "스프레드율은 10% 이하여야 합니다.")
-    @Schema(description = "스프레드율 (%)", example = "1.5", required = true)
+    @Schema(description = "스프레드율 (%)", example = "1.0", required = true)
     private BigDecimal spreadRate;
     
     @NotNull(message = "우대율은 필수입니다.")
     @DecimalMin(value = "0.0", message = "우대율은 0 이상이어야 합니다.")
     @DecimalMax(value = "100.0", message = "우대율은 100% 이하여야 합니다.")
-    @Schema(description = "우대율 (%)", example = "50.0", required = true)
+    @Schema(description = "우대율 (%) - 실제 은행 우대율 반영", example = "90.0", required = true)
     private BigDecimal preferentialRate;
     
     @NotNull(message = "고정 수수료는 필수입니다.")
     @DecimalMin(value = "0.0", message = "고정 수수료는 0 이상이어야 합니다.")
-    @Schema(description = "고정 수수료 (원)", example = "1000.0", required = true)
+    @Schema(description = "고정 수수료 (원)", example = "0.0", required = true)
     private BigDecimal fixedFee;
     
     @NotNull(message = "수수료율은 필수입니다.")
@@ -65,7 +65,7 @@ public class BankExchangeInfoRequestDTO {
     private Boolean isOnlineAvailable;
     
     @Size(max = 200, message = "설명은 200자 이내여야 합니다.")
-    @Schema(description = "부가 설명", example = "인터넷뱅킹 50% 우대율 적용")
+    @Schema(description = "부가 설명", example = "WiBee뱅킹 최대 90% 우대율, 수수료 무료")
     private String description;
     
     @Min(value = 0, message = "표시 순서는 0 이상이어야 합니다.")

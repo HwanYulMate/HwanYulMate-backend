@@ -20,19 +20,19 @@ public class BankExchangeInfoResponseDTO {
     @Schema(description = "은행 정보 ID", example = "1")
     private Long id;
     
-    @Schema(description = "은행명", example = "KB국민은행")
+    @Schema(description = "은행명", example = "우리은행")
     private String bankName;
     
-    @Schema(description = "은행 코드", example = "004")
+    @Schema(description = "은행 코드", example = "020")
     private String bankCode;
     
-    @Schema(description = "스프레드율 (%)", example = "1.5")
+    @Schema(description = "스프레드율 (%)", example = "1.0")
     private BigDecimal spreadRate;
     
-    @Schema(description = "우대율 (%)", example = "50.0")
+    @Schema(description = "우대율 (%) - 실제 은행 우대율", example = "90.0")
     private BigDecimal preferentialRate;
     
-    @Schema(description = "고정 수수료 (원)", example = "1000.0")
+    @Schema(description = "고정 수수료 (원)", example = "0.0")
     private BigDecimal fixedFee;
     
     @Schema(description = "수수료율 (%)", example = "0.1")
@@ -50,7 +50,7 @@ public class BankExchangeInfoResponseDTO {
     @Schema(description = "서비스 활성화 여부", example = "true")
     private Boolean isActive;
     
-    @Schema(description = "부가 설명", example = "인터넷뱅킹 50% 우대율 적용")
+    @Schema(description = "부가 설명", example = "WiBee뱅킹 최대 90% 우대율, 수수료 무료")
     private String description;
     
     @Schema(description = "화면 표시 순서", example = "1")
