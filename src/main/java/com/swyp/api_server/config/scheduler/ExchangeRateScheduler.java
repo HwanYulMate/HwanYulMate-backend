@@ -4,6 +4,8 @@ import com.swyp.api_server.domain.rate.service.ExchangeRateHistoryService;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
 import com.swyp.api_server.domain.rate.service.ExchangeRateServiceImpl;
 import com.swyp.api_server.domain.rate.service.ExchangeRateStorageService;
+import com.swyp.api_server.domain.rate.service.ExchangeRateHistoryInitService;
+import com.swyp.api_server.domain.rate.service.ServiceStartTracker;
 import com.swyp.api_server.domain.rate.dto.response.ExchangeResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,8 @@ public class ExchangeRateScheduler {
     private final ExchangeRateService exchangeRateService;
     private final ExchangeRateHistoryService historyService;
     private final ExchangeRateStorageService storageService;
+    private final ExchangeRateHistoryInitService initService;
+    private final ServiceStartTracker serviceStartTracker;
 
     /**
      * 평일 오전 9시 30분에 환율 데이터 갱신 및 히스토리 저장
@@ -132,5 +136,85 @@ public class ExchangeRateScheduler {
             // TODO: 알림 시스템 연동 (슬랙, 이메일 등)
             // 히스토리 정리 실패 시 담당자에게 알림
         }
+    }
+
+    /**
+     * 서비스 시작 후 7일차에 히스토리 데이터를 90일로 확장
+     * - 매일 오전 10시에 체크하여 조건 만족 시 실행
+     */
+    @Scheduled(cron = "0 0 10 * * MON-FRI", zone = "Asia/Seoul")
+    public void autoExpandTo90Days() {
+        try {
+            // 서비스 시작 후 7일이 지났는지 확인하는 로직 필요
+            // 임시로 조건부 실행
+            if (shouldExpandTo90Days()) {
+                log.info("========== 자동 히스토리 확장 시작 (90일) ==========");
+                initService.expandHistoricalData(90);
+                log.info("========== 자동 히스토리 확장 완료 (90일) ==========");
+            }
+        } catch (Exception e) {
+            log.error("90일 히스토리 자동 확장 중 오류 발생", e);
+        }
+    }
+
+    /**
+     * 서비스 시작 후 30일차에 히스토리 데이터를 180일로 확장
+     */
+    @Scheduled(cron = "0 0 10 * * MON-FRI", zone = "Asia/Seoul")
+    public void autoExpandTo180Days() {
+        try {
+            if (shouldExpandTo180Days()) {
+                log.info("========== 자동 히스토리 확장 시작 (180일) ==========");
+                initService.expandHistoricalData(180);
+                log.info("========== 자동 히스토리 확장 완료 (180일) ==========");
+            }
+        } catch (Exception e) {
+            log.error("180일 히스토리 자동 확장 중 오류 발생", e);
+        }
+    }
+
+    /**
+     * 서비스 시작 후 90일차에 히스토리 데이터를 365일로 확장
+     */
+    @Scheduled(cron = "0 0 10 * * MON-FRI", zone = "Asia/Seoul")
+    public void autoExpandTo365Days() {
+        try {
+            if (shouldExpandTo365Days()) {
+                log.info("========== 자동 히스토리 확장 시작 (365일) ==========");
+                initService.expandHistoricalData(365);
+                log.info("========== 자동 히스토리 확장 완료 (365일) ==========");
+            }
+        } catch (Exception e) {
+            log.error("365일 히스토리 자동 확장 중 오류 발생", e);
+        }
+    }
+
+    /**
+     * 매일 자동 초기화 체크 (서비스 시작 시 30일 데이터 확보)
+     */
+    @Scheduled(cron = "0 30 8 * * MON-FRI", zone = "Asia/Seoul")
+    public void autoInitializeIfNeeded() {
+        try {
+            if (initService.needsInitialization()) {
+                log.info("========== 자동 초기화 시작 (30일) ==========");
+                initService.initializeHistoricalData();
+                log.info("========== 자동 초기화 완료 (30일) ==========");
+            }
+        } catch (Exception e) {
+            log.error("자동 초기화 중 오류 발생", e);
+        }
+    }
+
+    // 확장 조건 체크 메서드들 (ServiceStartTracker 활용)
+    private boolean shouldExpandTo90Days() {
+        return serviceStartTracker.shouldExpandTo90Days();
+    }
+
+    private boolean shouldExpandTo180Days() {
+        return serviceStartTracker.shouldExpandTo180Days();
+    }
+
+    private boolean shouldExpandTo365Days() {
+        return serviceStartTracker.shouldExpandTo365Days();
     }
 }

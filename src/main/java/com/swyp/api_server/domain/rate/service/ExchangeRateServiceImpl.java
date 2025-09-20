@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -107,6 +108,21 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     public List<ExchangeResponseDTO> getExchangeRatesFromKoreaEximForScheduler() throws Exception {
         String searchDate = getCurrentOrPreviousDate();
         JsonNode responseData = fetchExchangeDataWithFallback(searchDate);
+        return parseExchangeRatesFromResponse(responseData, searchDate);
+    }
+    
+    /**
+     * 특정 날짜의 환율 조회 (히스토리 초기화 전용)
+     * 과거 날짜의 환율 데이터를 수집할 때 사용
+     */
+    public List<ExchangeResponseDTO> getExchangeRatesForSpecificDate(String searchDate) throws Exception {
+        JsonNode responseData = tryApiCall(searchDate);
+        
+        if (!hasValidData(responseData)) {
+            log.warn("날짜 {} 환율 데이터 없음", searchDate);
+            return new ArrayList<>();
+        }
+        
         return parseExchangeRatesFromResponse(responseData, searchDate);
     }
     
@@ -321,6 +337,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     /**
      * 특정 통화의 과거 환율 조회 - DB 전용 (API 호출 없음)
      * 스케줄러가 정해진 시간에 API 호출 → DB 저장하므로 클라이언트는 DB에서만 조회
+     * 평일 기준으로 조회
      */
     @Override
     public List<ExchangeChartResponseDTO> getHistoricalExchangeRate(String currencyCode, int days) {
@@ -335,13 +352,13 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     }
     
     /**
-     * 캐시를 통한 환율 히스토리 조회
+     * 캐시를 통한 환율 히스토리 조회 (평일 기준)
      */
     @Cacheable(value = Constants.Cache.HISTORICAL_RATE, key = "#currencyCode + '_' + #days")
     public List<ExchangeChartResponseDTO> getHistoricalExchangeRateFromCache(String currencyCode, int days) {
         validator.validateCurrencyCode(currencyCode);
         
-        log.info("캐시를 통한 환율 히스토리 조회: {} ({} days)", currencyCode, days);
+        log.info("캐시를 통한 환율 히스토리 조회: {} (평일 {} days)", currencyCode, days);
         return getHistoricalDataFromDatabaseSafely(currencyCode, days);
     }
     
@@ -371,16 +388,26 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     
     
     /**
-     * DB로부터 환율 히스토리 데이터 조회
+     * DB로부터 환율 히스토리 데이터 조회 (평일 기준)
      */
     private List<ExchangeChartResponseDTO> getHistoricalDataFromDatabase(String currencyCode, int days) {
         try {
-            LocalDate endDate = LocalDate.now();
-            LocalDate startDate = endDate.minusDays(days - 1);
+            // 평일 기준으로 날짜 범위 계산
+            List<LocalDate> businessDays = getRecentBusinessDays(days);
+            
+            if (businessDays.isEmpty()) {
+                log.warn("조회할 평일 날짜가 없습니다: {} days", days);
+                return new ArrayList<>();
+            }
+            
+            LocalDate startDate = businessDays.get(businessDays.size() - 1); // 가장 오래된 날짜
+            LocalDate endDate = businessDays.get(0); // 가장 최근 날짜
             
             List<ExchangeRateHistory> historyList = historyRepository.findByPeriod(currencyCode, startDate, endDate);
             
+            // 평일만 필터링
             List<ExchangeChartResponseDTO> chartData = historyList.stream()
+                    .filter(history -> isBusinessDay(history.getBaseDate()))
                     .map(history -> ExchangeChartResponseDTO.builder()
                             .date(history.getBaseDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")))
                             .rate(history.getExchangeRate())
@@ -388,39 +415,71 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                             .build())
                     .toList();
             
-            log.info("DB 환율 데이터 조회 완료: {} ({} days, {} entries)", 
+            log.info("DB 환율 데이터 조회 완료 (평일 기준): {} (요청: 평일 {} days, 조회: {} entries)", 
                     currencyCode, days, chartData.size());
             
-            // DB에도 데이터가 없는 경우 최근 7일 데이터로 재시도
+            // DB에도 데이터가 없는 경우 최근 평일 7일 데이터로 재시도
             if (chartData.isEmpty() && days > 7) {
-                log.info("요청된 기간({} days)에 데이터가 없어 최근 7일 데이터로 재시도: {}", days, currencyCode);
-                LocalDate recentStartDate = endDate.minusDays(6);
-                List<ExchangeRateHistory> recentHistoryList = historyRepository.findByPeriod(currencyCode, recentStartDate, endDate);
+                log.info("요청된 기간(평일 {} days)에 데이터가 없어 최근 평일 7일 데이터로 재시도: {}", days, currencyCode);
+                List<LocalDate> recentBusinessDays = getRecentBusinessDays(7);
                 
-                chartData = recentHistoryList.stream()
-                        .map(history -> ExchangeChartResponseDTO.builder()
-                                .date(history.getBaseDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                                .rate(history.getExchangeRate())
-                                .timestamp(history.getBaseDate().atStartOfDay())
-                                .build())
-                        .toList();
-                        
-                if (!chartData.isEmpty()) {
-                    log.info("최근 7일 데이터 조회 성공: {} ({} entries)", currencyCode, chartData.size());
+                if (!recentBusinessDays.isEmpty()) {
+                    LocalDate recentStartDate = recentBusinessDays.get(recentBusinessDays.size() - 1);
+                    LocalDate recentEndDate = recentBusinessDays.get(0);
+                    
+                    List<ExchangeRateHistory> recentHistoryList = historyRepository.findByPeriod(currencyCode, recentStartDate, recentEndDate);
+                    
+                    chartData = recentHistoryList.stream()
+                            .filter(history -> isBusinessDay(history.getBaseDate()))
+                            .map(history -> ExchangeChartResponseDTO.builder()
+                                    .date(history.getBaseDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                    .rate(history.getExchangeRate())
+                                    .timestamp(history.getBaseDate().atStartOfDay())
+                                    .build())
+                            .toList();
+                            
+                    if (!chartData.isEmpty()) {
+                        log.info("최근 평일 7일 데이터 조회 성공: {} ({} entries)", currencyCode, chartData.size());
+                    }
                 }
             }
             
             // 여전히 데이터가 없는 경우
             if (chartData.isEmpty()) {
-                log.warn("DB에서도 환율 데이터를 찾을 수 없습니다: {} ({} days)", currencyCode, days);
+                log.warn("DB에서도 환율 데이터를 찾을 수 없습니다: {} (평일 {} days)", currencyCode, days);
             }
             
             return chartData;
             
         } catch (Exception e) {
-            log.error("DB에서 환율 히스토리 조회 실패: {}, {} days", currencyCode, days, e);
+            log.error("DB에서 환율 히스토리 조회 실패: {}, 평일 {} days", currencyCode, days, e);
             return new ArrayList<>(); // 빈 리스트 반환
         }
+    }
+    
+    /**
+     * 최근 N개 평일 날짜 리스트 생성 (최신 순)
+     */
+    private List<LocalDate> getRecentBusinessDays(int count) {
+        List<LocalDate> businessDays = new ArrayList<>();
+        LocalDate currentDate = LocalDate.now().minusDays(1); // 어제부터 시작
+        
+        while (businessDays.size() < count && currentDate.isAfter(LocalDate.now().minusYears(2))) {
+            if (isBusinessDay(currentDate)) {
+                businessDays.add(currentDate);
+            }
+            currentDate = currentDate.minusDays(1);
+        }
+        
+        return businessDays; // 최신 날짜가 첫 번째
+    }
+    
+    /**
+     * 평일 여부 확인 (토, 일 제외)
+     */
+    private boolean isBusinessDay(LocalDate date) {
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
+        return dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY;
     }
     
     

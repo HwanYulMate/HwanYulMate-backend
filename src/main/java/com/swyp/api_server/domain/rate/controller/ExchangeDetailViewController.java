@@ -81,15 +81,15 @@ public class ExchangeDetailViewController {
     }
 
     /**
-     * 특정 통화의 차트 데이터 조회 (최근 30일)
+     * 특정 통화의 차트 데이터 조회 (평일 기준 30일)
      * @param currencyCode 통화 코드
-     * @return 차트용 시계열 데이터
+     * @return 차트용 시계열 데이터 (평일만)
      */
     @GetMapping("/exchange/chart")
-    @Operation(summary = "환율 차트 데이터 조회 (DB 전용)",
+    @Operation(summary = "환율 차트 데이터 조회 (평일 기준 30일)",
                description = "차트 시각화를 위한 환율 시계열 데이터를 DB에서 조회합니다. " +
-                          "스케줄러가 정해진 시간(오전 9:30, 오후 3:00)에 수집한 최신 데이터를 제공합니다. " +
-                          "실시간 API 호출 없이 빠른 응답속도와 안정적인 서비스를 보장합니다.")
+                          "평일(월~금) 기준으로 최근 30일간의 데이터를 제공하며, 주말/공휴일은 제외됩니다. " +
+                          "스케줄러가 정해진 시간(오전 9:30, 오후 3:00)에 수집한 데이터로 빠른 응답속도를 보장합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -127,13 +127,13 @@ public class ExchangeDetailViewController {
     }
 
     /**
-     * 특정 통화의 최근 1주일 환율 변동 조회
+     * 특정 통화의 최근 1주일 환율 변동 조회 (평일 기준)
      * @param currencyCode 통화 코드
-     * @return 최근 7일간의 환율 데이터
+     * @return 최근 평일 7일간의 환율 데이터
      */
     @GetMapping("/exchange/weekly")
-    @Operation(summary = "최근 1주일 환율 변동 조회 (DB 전용)",
-               description = "최근 7일간의 환율 변동 정보를 DB에서 조회합니다. 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
+    @Operation(summary = "최근 1주일 환율 변동 조회 (평일 기준)",
+               description = "최근 평일 7일간의 환율 변동 정보를 DB에서 조회합니다. 주말/공휴일은 제외되며, 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -165,13 +165,13 @@ public class ExchangeDetailViewController {
     }
 
     /**
-     * 특정 통화의 최근 1개월 환율 변동 조회
+     * 특정 통화의 최근 1개월 환율 변동 조회 (평일 기준)
      * @param currencyCode 통화 코드
-     * @return 최근 30일간의 환율 데이터
+     * @return 최근 평일 30일간의 환율 데이터
      */
     @GetMapping("/exchange/monthly")
-    @Operation(summary = "최근 1개월 환율 변동 조회 (DB 전용)",
-               description = "최근 30일간의 환율 변동 정보를 DB에서 조회합니다. 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
+    @Operation(summary = "최근 1개월 환율 변동 조회 (평일 기준)",
+               description = "최근 평일 30일간의 환율 변동 정보를 DB에서 조회합니다. 주말/공휴일은 제외되며, 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -203,13 +203,13 @@ public class ExchangeDetailViewController {
     }
 
     /**
-     * 특정 통화의 최근 3개월 환율 변동 조회
+     * 특정 통화의 최근 3개월 환율 변동 조회 (평일 기준)
      * @param currencyCode 통화 코드
-     * @return 최근 90일간의 환율 데이터
+     * @return 최근 평일 90일간의 환율 데이터
      */
     @GetMapping("/exchange/3months")
-    @Operation(summary = "최근 3개월 환율 변동 조회 (DB 전용)",
-               description = "최근 90일간의 환율 변동 정보를 DB에서 조회합니다. 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
+    @Operation(summary = "최근 3개월 환율 변동 조회 (평일 기준)",
+               description = "최근 평일 90일간의 환율 변동 정보를 DB에서 조회합니다. 주말/공휴일은 제외되며, 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -241,13 +241,13 @@ public class ExchangeDetailViewController {
     }
 
     /**
-     * 특정 통화의 최근 6개월 환율 변동 조회
+     * 특정 통화의 최근 6개월 환율 변동 조회 (평일 기준)
      * @param currencyCode 통화 코드
-     * @return 최근 180일간의 환율 데이터
+     * @return 최근 평일 180일간의 환율 데이터
      */
     @GetMapping("/exchange/6months")
-    @Operation(summary = "최근 6개월 환율 변동 조회 (DB 전용)",
-               description = "최근 180일간의 환율 변동 정보를 DB에서 조회합니다. 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
+    @Operation(summary = "최근 6개월 환율 변동 조회 (평일 기준)",
+               description = "최근 평일 180일간의 환율 변동 정보를 DB에서 조회합니다. 주말/공휴일은 제외되며, 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 
@@ -279,13 +279,13 @@ public class ExchangeDetailViewController {
     }
 
     /**
-     * 특정 통화의 최근 1년 환율 변동 조회
+     * 특정 통화의 최근 1년 환율 변동 조회 (평일 기준)
      * @param currencyCode 통화 코드
-     * @return 최근 365일간의 환율 데이터
+     * @return 최근 평일 365일간의 환율 데이터
      */
     @GetMapping("/exchange/yearly")
-    @Operation(summary = "최근 1년 환율 변동 조회 (DB 전용)",
-               description = "최근 365일간의 환율 변동 정보를 DB에서 조회합니다. 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
+    @Operation(summary = "최근 1년 환율 변동 조회 (평일 기준)",
+               description = "최근 평일 365일간의 환율 변동 정보를 DB에서 조회합니다. 주말/공휴일은 제외되며, 스케줄러 수집 데이터 기반으로 빠른 응답을 제공합니다.")
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200", 

@@ -88,4 +88,15 @@ public interface ExchangeRateHistoryRepository extends JpaRepository<ExchangeRat
      */
     @Query("SELECT COUNT(h) FROM ExchangeRateHistory h WHERE h.baseDate < :cutoffDate")
     long countByBaseDateBefore(@Param("cutoffDate") LocalDate cutoffDate);
+    
+    /**
+     * 특정 날짜와 통화의 데이터 존재 여부 확인 (중복 방지용)
+     */
+    boolean existsByBaseDateAndCurrencyCode(LocalDate baseDate, String currencyCode);
+    
+    /**
+     * 가장 오래된 히스토리 데이터 날짜 조회
+     */
+    @Query("SELECT MIN(h.baseDate) FROM ExchangeRateHistory h")
+    Optional<LocalDate> findOldestBaseDate();
 }
