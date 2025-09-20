@@ -161,11 +161,45 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
         ExchangeResultResponseDTO.FeeDetail feeDetail = calculateFee(exchangedAmount, bankInfo);
         BigDecimal totalFee = feeDetail.getFixedFee().add(feeDetail.getRateBasedFee());
         
+        // 수수료가 환전 금액을 초과하는 경우 처리
+        if (totalFee.compareTo(exchangedAmount) >= 0) {
+            log.warn("수수료({})가 환전 금액({})을 초과합니다. 은행: {}, 입력금액: {}", 
+                totalFee, exchangedAmount, bankInfo.getBankName(), request.getAmount());
+            
+            // 최종 금액을 0으로 설정하고 경고 메시지 포함
+            BigDecimal finalAmount = BigDecimal.ZERO;
+            
+            return ExchangeResultResponseDTO.builder()
+                .bankName(bankInfo.getBankName())
+                .bankCode(bankInfo.getBankCode())
+                .baseRate(marketRate)
+                .appliedRate(finalRate)
+                .preferentialRate(bankInfo.getPreferentialRate())
+                .spreadRate(bankInfo.getSpreadRate())
+                .totalFee(totalFee)
+                .feeDetail(feeDetail)
+                .finalAmount(finalAmount)
+                .inputAmount(request.getAmount())
+                .currencyCode(request.getCurrencyCode())
+                .flagImageUrl(getFlagImageUrl(request.getCurrencyCode()))
+                .isOnlineAvailable(bankInfo.getIsOnlineAvailable())
+                .description(bankInfo.getDescription() + " (수수료가 환전금액을 초과)")
+                .baseDate(rateInfo.getBaseDate())
+                .build();
+        }
+        
         // 최종 금액 (수수료 제외)
         BigDecimal finalAmount = exchangedAmount.subtract(totalFee);
         
-        // 최소/최대 금액 검증
-        validateExchangeAmount(request.getAmount(), bankInfo);
+        // 음수 방지 (추가 안전장치)
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            log.warn("계산된 최종 금액이 음수입니다. 0으로 조정. 은행: {}, 계산값: {}", 
+                bankInfo.getBankName(), finalAmount);
+            finalAmount = BigDecimal.ZERO;
+        }
+        
+        // 최소/최대 금액 검증 (수수료 포함한 실제 필요 금액 기준)
+        validateExchangeAmountWithFee(request.getAmount(), exchangedAmount, totalFee, bankInfo);
         
         return ExchangeResultResponseDTO.builder()
             .bankName(bankInfo.getBankName())
@@ -242,7 +276,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
-     * 환전 금액 범위 검증
+     * 환전 금액 범위 검증 (기존)
      */
     private void validateExchangeAmount(BigDecimal amount, BankExchangeInfo bankInfo) {
         if (amount.compareTo(bankInfo.getMinAmount()) < 0) {
@@ -255,6 +289,30 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
             throw new CustomException(ErrorCode.INVALID_REQUEST,
                 String.format("%s 최대 환전 금액은 %s %s입니다.", 
                     bankInfo.getBankName(), bankInfo.getMaxAmount(), "USD"));
+        }
+    }
+    
+    /**
+     * 수수료를 고려한 환전 금액 검증 (강화된 버전)
+     */
+    private void validateExchangeAmountWithFee(BigDecimal inputAmount, BigDecimal exchangedAmount, 
+                                             BigDecimal totalFee, BankExchangeInfo bankInfo) {
+        // 기본 범위 검증
+        validateExchangeAmount(inputAmount, bankInfo);
+        
+        // 수수료 대비 최소 환전 금액 검증
+        BigDecimal minimumViableAmount = totalFee.multiply(BigDecimal.valueOf(2)); // 수수료의 2배
+        if (exchangedAmount.compareTo(minimumViableAmount) < 0) {
+            log.warn("환전 금액이 너무 작습니다. 은행: {}, 환전금액: {}, 최소권장: {}", 
+                bankInfo.getBankName(), exchangedAmount, minimumViableAmount);
+        }
+        
+        // 수수료율이 환전 금액의 50%를 초과하는 경우 경고
+        BigDecimal feeRatio = totalFee.divide(exchangedAmount, 4, RoundingMode.HALF_UP)
+            .multiply(BigDecimal.valueOf(100));
+        if (feeRatio.compareTo(BigDecimal.valueOf(50)) > 0) {
+            log.warn("수수료 비율이 과도합니다. 은행: {}, 수수료 비율: {}%", 
+                bankInfo.getBankName(), feeRatio);
         }
     }
     

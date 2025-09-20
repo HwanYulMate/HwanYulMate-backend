@@ -40,7 +40,8 @@ public class ExchangeResultController {
     @Operation(
         summary = "은행별 환전 예상 금액 비교 (DB 기반)",
         description = "DB에 저장된 최신 환율 정보를 기반으로 여러 은행의 환전 예상 금액을 비교합니다. " +
-                      "환율 데이터는 스케줄러에 의해 수집되어 빠른 응답속도를 제공하며, 우대율과 수수료가 모두 반영됩니다."
+                      "환율 데이터는 스케줄러에 의해 수집되어 빠른 응답속도를 제공하며, 우대율과 수수료가 모두 반영됩니다. " +
+                      "**중요**: 수수료가 환전금액을 초과하는 경우 최종 금액은 0원으로 표시되며, 음수 결과는 발생하지 않습니다."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -49,23 +50,39 @@ public class ExchangeResultController {
             content = @Content(
                 schema = @Schema(implementation = ExchangeResultResponseDTO.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
-                    name = "환전 계산 결과",
+                    name = "환전 계산 결과 (업데이트된 실제 우대율)",
                     value = "[\n" +
                             "  {\n" +
-                            "    \"bankName\": \"KB국민은행\",\n" +
-                            "    \"bankCode\": \"004\",\n" +
+                            "    \"bankName\": \"우리은행\",\n" +
+                            "    \"bankCode\": \"020\",\n" +
                             "    \"baseRate\": 1385.20,\n" +
-                            "    \"appliedRate\": 1380.50,\n" +
-                            "    \"preferentialRate\": 50.0,\n" +
-                            "    \"spreadRate\": 1.5,\n" +
-                            "    \"totalFee\": 1000.0,\n" +
-                            "    \"finalAmount\": 137050.0,\n" +
+                            "    \"appliedRate\": 1396.50,\n" +
+                            "    \"preferentialRate\": 90.0,\n" +
+                            "    \"spreadRate\": 1.0,\n" +
+                            "    \"totalFee\": 0.0,\n" +
+                            "    \"finalAmount\": 139650.0,\n" +
                             "    \"inputAmount\": 100.0,\n" +
                             "    \"currencyCode\": \"USD\",\n" +
                             "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
                             "    \"isOnlineAvailable\": true,\n" +
-                            "    \"description\": \"인터넷뱅킹 50% 우대율 적용\",\n" +
-                            "    \"baseDate\": \"20250916\"\n" +
+                            "    \"description\": \"WiBee뱅킹 최대 90% 우대율, 수수료 무료\",\n" +
+                            "    \"baseDate\": \"20250920\"\n" +
+                            "  },\n" +
+                            "  {\n" +
+                            "    \"bankName\": \"SC제일은행\",\n" +
+                            "    \"bankCode\": \"023\",\n" +
+                            "    \"baseRate\": 1385.20,\n" +
+                            "    \"appliedRate\": 1365.80,\n" +
+                            "    \"preferentialRate\": 40.0,\n" +
+                            "    \"spreadRate\": 1.4,\n" +
+                            "    \"totalFee\": 2500.0,\n" +
+                            "    \"finalAmount\": 0.0,\n" +
+                            "    \"inputAmount\": 1.0,\n" +
+                            "    \"currencyCode\": \"USD\",\n" +
+                            "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
+                            "    \"isOnlineAvailable\": true,\n" +
+                            "    \"description\": \"SC인터넷뱅킹 최대 40% 우대율 (수수료가 환전금액을 초과)\",\n" +
+                            "    \"baseDate\": \"20250920\"\n" +
                             "  }\n" +
                             "]"
                 )
@@ -73,8 +90,21 @@ public class ExchangeResultController {
         ),
         @ApiResponse(
             responseCode = "400", 
-            description = "잘못된 요청 (유효하지 않은 통화 코드 또는 금액)",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            description = "잘못된 요청 (유효하지 않은 통화 코드, 금액, 또는 수수료가 환전금액 초과)",
+            content = @Content(
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                    name = "수수료 초과 오류",
+                    value = "{\n" +
+                            "  \"success\": false,\n" +
+                            "  \"code\": \"RATE_009\",\n" +
+                            "  \"message\": \"수수료가 환전 금액을 초과합니다. 더 큰 금액으로 환전을 시도해주세요.\",\n" +
+                            "  \"detail\": \"1달러 환전시 수수료 2,500원 발생\",\n" +
+                            "  \"timestamp\": \"2025-09-20T10:30:00\",\n" +
+                            "  \"path\": \"/api/exchange/calculate\"\n" +
+                            "}"
+                )
+            )
         ),
         @ApiResponse(
             responseCode = "503", 
@@ -101,7 +131,8 @@ public class ExchangeResultController {
     @Operation(
         summary = "간편 환전 계산 (DB 기반)",
         description = "GET 방식으로 간단하게 환전 예상 금액을 DB 기반으로 계산합니다. " +
-                      "스케줄러가 수집한 최신 환율 정보를 사용하여 빠른 응답을 제공합니다. 기본값: 외화→원화 방향"
+                      "스케줄러가 수집한 최신 환율 정보를 사용하여 빠른 응답을 제공합니다. 기본값: 외화→원화 방향. " +
+                      "**주의**: 소액 환전시 수수료가 환전금액을 초과할 수 있으며, 이 경우 최종 금액은 0원으로 표시됩니다."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -156,7 +187,8 @@ public class ExchangeResultController {
     @Operation(
         summary = "특정 은행 환전 계산 (DB 기반)",
         description = "지정한 은행의 환전 예상 금액을 DB 기반으로 계산합니다. " +
-                      "스케줄러가 수집한 최신 환율 정보를 사용하여 빠른 계산 결과를 제공합니다."
+                      "스케줄러가 수집한 최신 환율 정보를 사용하여 빠른 계산 결과를 제공합니다. " +
+                      "실제 우대율 반영: 우리은행(90%), IM뱅크(80%), KB국민은행(75%), 하나은행(70%), 신한은행(60%), 씨티은행(50%), SC제일은행(40%)"
     )
     @ApiResponses(value = {
         @ApiResponse(

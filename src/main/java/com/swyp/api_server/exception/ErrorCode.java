@@ -46,6 +46,8 @@ public enum ErrorCode {
     EXCHANGE_AMOUNT_ABOVE_MAXIMUM(HttpStatus.BAD_REQUEST, "RATE_006", "최대 환전 금액을 초과했습니다. 더 적은 금액을 입력해주세요."),
     UNSUPPORTED_BANK(HttpStatus.BAD_REQUEST, "RATE_007", "해당 은행은 지원하지 않습니다. 지원 은행 목록을 확인해주세요."),
     EXCHANGE_RATE_API_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "RATE_008", "환율 조회 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
+    EXCHANGE_FEE_EXCEEDS_AMOUNT(HttpStatus.BAD_REQUEST, "RATE_009", "수수료가 환전 금액을 초과합니다. 더 큰 금액으로 환전을 시도해주세요."),
+    EXCHANGE_AMOUNT_TOO_SMALL(HttpStatus.BAD_REQUEST, "RATE_010", "환전 금액이 너무 작습니다. 수수료를 고려하여 더 큰 금액을 입력해주세요."),
 
     // 뉴스 관련 에러 (NEWS_xxx)
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "NEWS_001", "요청하신 뉴스를 찾을 수 없습니다. 검색어나 조건을 확인해주세요."),
