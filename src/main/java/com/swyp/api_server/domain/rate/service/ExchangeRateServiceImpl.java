@@ -542,7 +542,8 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             
             if (latestRates.isEmpty()) {
                 log.warn("DB에 환율 데이터가 없습니다. 스케줄러 동작 확인 필요");
-                return new ArrayList<>();
+                throw new CustomException(ErrorCode.EXCHANGE_RATE_NOT_FOUND, 
+                    "환율 데이터가 없습니다. 잠시 후 다시 시도해주세요.");
             }
             
             List<ExchangeResponseDTO> exchangeRates = new ArrayList<>();

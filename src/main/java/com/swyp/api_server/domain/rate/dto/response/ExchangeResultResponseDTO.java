@@ -25,28 +25,35 @@ public class ExchangeResultResponseDTO implements Serializable {
     private String bankCode;
 
     @Schema(description = "기준 환율", example = "1385.20")
-    private BigDecimal baseRate;
+    @Builder.Default
+    private BigDecimal baseRate = BigDecimal.ZERO;
     
     @Schema(description = "실제 적용 환율 (우대율 반영)", example = "1396.50")
-    private BigDecimal appliedRate;
+    @Builder.Default
+    private BigDecimal appliedRate = BigDecimal.ZERO;
 
     @Schema(description = "우대율 (%) - 실제 은행 우대율 적용", example = "90.0")
-    private BigDecimal preferentialRate;
+    @Builder.Default
+    private BigDecimal preferentialRate = BigDecimal.ZERO;
     
     @Schema(description = "스프레드율", example = "1.0")
-    private BigDecimal spreadRate;
+    @Builder.Default
+    private BigDecimal spreadRate = BigDecimal.ZERO;
 
     @Schema(description = "수수료 금액", example = "0.0")
-    private BigDecimal totalFee;
+    @Builder.Default
+    private BigDecimal totalFee = BigDecimal.ZERO;
     
     @Schema(description = "수수료 상세")
     private FeeDetail feeDetail;
 
     @Schema(description = "최종 환전 결과 금액 (수수료 제외 후) - 음수인 경우 0.0으로 표시", example = "139650.0")
-    private BigDecimal finalAmount;
+    @Builder.Default
+    private BigDecimal finalAmount = BigDecimal.ZERO;
     
     @Schema(description = "입력 금액 (외화)", example = "1000.0")
-    private BigDecimal inputAmount;
+    @Builder.Default
+    private BigDecimal inputAmount = BigDecimal.ZERO;
     
     @Schema(description = "통화 코드", example = "USD")
     private String currencyCode;
@@ -54,8 +61,8 @@ public class ExchangeResultResponseDTO implements Serializable {
     @Schema(description = "국기 이미지 URL", example = "/images/flags/us.png")
     private String flagImageUrl;
     
-    @Schema(description = "온라인 환전 가능 여부", example = "true")
-    private boolean isOnlineAvailable;
+    @Schema(description = "온라인 환전 가능 여부", example = "true", nullable = true)
+    private Boolean isOnlineAvailable;
     
     @Schema(description = "추가 설명", example = "WiBee뱅킹 최대 90% 우대율, 수수료 무료")
     private String description;
@@ -74,13 +81,16 @@ public class ExchangeResultResponseDTO implements Serializable {
     @Schema(description = "수수료 상세 정보")
     public static class FeeDetail implements Serializable {
         
-        @Schema(description = "고정 수수료", example = "0.0")
-        private BigDecimal fixedFee;
+        @Schema(description = "고정 수수료", example = "0.0", defaultValue = "0.0")
+        @Builder.Default
+        private BigDecimal fixedFee = BigDecimal.ZERO;
         
-        @Schema(description = "수수료율 (%)", example = "0.0")
-        private BigDecimal feeRate;
+        @Schema(description = "수수료율 (%)", example = "0.0", defaultValue = "0.0")
+        @Builder.Default
+        private BigDecimal feeRate = BigDecimal.ZERO;
         
-        @Schema(description = "수수료율 적용 금액", example = "0.0")
-        private BigDecimal rateBasedFee;
+        @Schema(description = "수수료율 적용 금액", example = "0.0", defaultValue = "0.0")
+        @Builder.Default
+        private BigDecimal rateBasedFee = BigDecimal.ZERO;
     }
 }

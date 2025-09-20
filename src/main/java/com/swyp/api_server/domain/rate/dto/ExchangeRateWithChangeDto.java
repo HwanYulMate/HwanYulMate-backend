@@ -47,8 +47,8 @@ public class ExchangeRateWithChangeDto {
     private BigDecimal changeAmount;
     
     @JsonProperty("change_percent")
-    @Schema(description = "변동 퍼센트 (%)", example = "-0.05")
-    private Double changePercent;
+    @Schema(description = "변동 퍼센트 (%)", example = "-0.05", type = "number")
+    private BigDecimal changePercent;
     
     @JsonProperty("change_direction")
     @Schema(description = "변동 방향", example = "DOWN", allowableValues = {"UP", "DOWN", "STABLE"})
@@ -76,8 +76,7 @@ public class ExchangeRateWithChangeDto {
             // 변동 퍼센트 계산 ((현재값 - 이전값) / 이전값 * 100)
             BigDecimal changeRatio = dto.changeAmount.divide(previous.getExchangeRate(), 6, RoundingMode.HALF_UP);
             dto.changePercent = changeRatio.multiply(BigDecimal.valueOf(100))
-                    .setScale(2, RoundingMode.HALF_UP)
-                    .doubleValue();
+                    .setScale(2, RoundingMode.HALF_UP);
             
             // 변동 방향 설정
             int comparison = dto.changeAmount.compareTo(BigDecimal.ZERO);
@@ -91,7 +90,7 @@ public class ExchangeRateWithChangeDto {
         } else {
             // 이전 데이터가 없는 경우 (첫날)
             dto.changeAmount = BigDecimal.ZERO;
-            dto.changePercent = 0.0;
+            dto.changePercent = BigDecimal.ZERO;
             dto.changeDirection = "STABLE";
         }
         

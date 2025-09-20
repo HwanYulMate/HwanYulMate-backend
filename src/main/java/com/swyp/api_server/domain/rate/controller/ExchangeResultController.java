@@ -80,7 +80,7 @@ public class ExchangeResultController {
                             "    \"inputAmount\": 1.0,\n" +
                             "    \"currencyCode\": \"USD\",\n" +
                             "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
-                            "    \"isOnlineAvailable\": true,\n" +
+                            "    \"isOnlineAvailable\": null,\n" +
                             "    \"description\": \"SC인터넷뱅킹 최대 40% 우대율 (수수료가 환전금액을 초과)\",\n" +
                             "    \"baseDate\": \"20250920\"\n" +
                             "  }\n" +

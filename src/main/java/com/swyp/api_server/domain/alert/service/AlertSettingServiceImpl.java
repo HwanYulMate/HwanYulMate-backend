@@ -100,6 +100,13 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         
         for (AlertSetting alert : targetAlerts) {
             try {
+                // FCM 토큰 사전 검증
+                String fcmToken = alert.getUser().getFcmToken();
+                if (fcmToken == null || fcmToken.trim().isEmpty()) {
+                    log.warn("FCM 토큰이 없는 사용자 건너뜀: {}", alert.getUser().getEmail());
+                    continue;
+                }
+                
                 // 현재 환율 조회
                 var currentRate = exchangeRateService.getRealtimeExchangeRate(alert.getCurrencyCode());
                 BigDecimal currentPrice = currentRate.getCurrentRate();
@@ -162,6 +169,13 @@ public class AlertSettingServiceImpl implements AlertSettingService {
         
         for (AlertSetting alert : dailyAlerts) {
             try {
+                // FCM 토큰 사전 검증
+                String fcmToken = alert.getUser().getFcmToken();
+                if (fcmToken == null || fcmToken.trim().isEmpty()) {
+                    log.warn("FCM 토큰이 없는 사용자 건너뜀: {}", alert.getUser().getEmail());
+                    continue;
+                }
+                
                 // 현재 환율 조회
                 var currentRate = exchangeRateService.getRealtimeExchangeRate(alert.getCurrencyCode());
                 
@@ -199,9 +213,10 @@ public class AlertSettingServiceImpl implements AlertSettingService {
      */
     private boolean sendTargetPriceAlert(AlertSetting alert, BigDecimal currentPrice) {
         // FCM 푸시 알림 발송 (iOS 전용)
-        if (alert.getUser().getFcmToken() != null) {
+        String fcmToken = alert.getUser().getFcmToken();
+        if (fcmToken != null && !fcmToken.trim().isEmpty()) {
             boolean success = fcmService.sendTargetRateAlert(
-                alert.getUser().getFcmToken(),
+                fcmToken,
                 alert.getCurrencyCode(),
                 alert.getTargetPrice().doubleValue(),
                 currentPrice.doubleValue()
@@ -227,9 +242,10 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     private boolean sendDailyExchangeRateAlert(AlertSetting alert, 
             com.swyp.api_server.domain.rate.dto.response.ExchangeRealtimeResponseDTO currentRate) {
         
-        if (alert.getUser().getFcmToken() != null) {
+        String fcmToken = alert.getUser().getFcmToken();
+        if (fcmToken != null && !fcmToken.trim().isEmpty()) {
             boolean success = fcmService.sendDailyRateAlert(
-                alert.getUser().getFcmToken(),
+                fcmToken,
                 alert.getCurrencyCode(),
                 currentRate.getCurrentRate().doubleValue(),
                 currentRate.getPreviousRate().doubleValue()
