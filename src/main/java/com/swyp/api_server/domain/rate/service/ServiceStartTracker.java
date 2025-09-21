@@ -14,8 +14,8 @@ import java.time.format.DateTimeFormatter;
 @Service
 public class ServiceStartTracker {
 
-    // 서비스 시작일 (실제 운영 시 configuration으로 관리 권장)
-    private static final String SERVICE_START_DATE = "2025-01-01"; // 실제 서비스 런칭일로 변경
+    // 서비스 시작일 (오늘부터 히스토리 확장 시작)
+    private static final String SERVICE_START_DATE = "2025-09-21"; // 오늘 배포일
     
     /**
      * 서비스 시작일 조회

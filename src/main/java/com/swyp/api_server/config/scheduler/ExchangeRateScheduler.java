@@ -145,8 +145,7 @@ public class ExchangeRateScheduler {
     @Scheduled(cron = "0 0 10 * * MON-FRI", zone = "Asia/Seoul")
     public void autoExpandTo90Days() {
         try {
-            // 서비스 시작 후 7일이 지났는지 확인하는 로직 필요
-            // 임시로 조건부 실행
+            // ServiceStartTracker로 확장 조건 체크
             if (shouldExpandTo90Days()) {
                 log.info("========== 자동 히스토리 확장 시작 (90일) ==========");
                 initService.expandHistoricalData(90);
