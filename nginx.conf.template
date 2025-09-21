@@ -7,9 +7,9 @@ http {
         server hwanyulmate-app:8084;
     }
 
-    # 8080 포트 - 개발자 IP만 허용
+    # 8084 포트 - 개발자 IP만 허용
     server {
-        listen 8080;
+        listen 8084;
         server_name _;
         
         # 개발자 IP 허용 목록 (환경변수로 관리)

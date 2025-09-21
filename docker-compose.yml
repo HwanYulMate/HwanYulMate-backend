@@ -60,7 +60,7 @@ services:
     restart: always
     ports:
       - "443:443"   # HTTPS - 모든 IP 허용
-      - "8080:8080" # HTTP - 특정 IP만 허용
+      - "8084:8084" # HTTP - 특정 IP만 허용
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/ssl # SSL 인증서 디렉토리 (필요시)
