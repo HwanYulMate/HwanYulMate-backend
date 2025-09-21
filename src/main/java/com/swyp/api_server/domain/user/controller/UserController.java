@@ -223,7 +223,22 @@ public class UserController {
         )
     })
     @PostMapping("/fcm/token")
-    public ResponseEntity<?> registerFCMToken(@RequestBody java.util.Map<String, String> fcmTokenRequest, HttpServletRequest request) {
+    public ResponseEntity<?> registerFCMToken(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "FCM 토큰 등록 정보",
+                content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                        name = "FCM 토큰 등록 예시",
+                        value = """
+                        {
+                          "fcmToken": "your_actual_fcm_token_here"
+                        }
+                        """
+                    )
+                )
+            )
+            @RequestBody java.util.Map<String, String> fcmTokenRequest, HttpServletRequest request) {
         String email = authUtil.extractUserEmail(request);
         String fcmToken = fcmTokenRequest.get("fcmToken");
         userService.updateFCMToken(email, fcmToken);
