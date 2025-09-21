@@ -1,0 +1,53 @@
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream app_server {
+        server hwanyulmate-app:8084;
+    }
+
+    # 8080 포트 - 개발자 IP만 허용
+    server {
+        listen 8080;
+        server_name _;
+        
+        # 개발자 IP 허용 목록 (환경변수로 관리)
+        # 실제 배포시에는 nginx.conf.template을 사용하여 동적으로 생성
+        allow ${DEVELOPER_IP_1};  # 개발자 1 IP
+        allow ${DEVELOPER_IP_2};  # 개발자 2 IP  
+        allow ${MY_IP};           # 본인 IP
+        deny all;                 # 나머지 모든 IP 차단
+        
+        location / {
+            proxy_pass http://app_server;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    # 443 포트 - HTTPS, 모든 IP 허용
+    server {
+        listen 443 ssl;
+        server_name _;
+        
+        # SSL 인증서 설정 (실제 인증서 경로로 변경 필요)
+        ssl_certificate /etc/ssl/certs/server.crt;
+        ssl_certificate_key /etc/ssl/private/server.key;
+        
+        # SSL 설정
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+        
+        location / {
+            proxy_pass http://app_server;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+    }
+}

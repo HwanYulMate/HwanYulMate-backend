@@ -254,4 +254,11 @@ application.yml
 .claude/
 hwanyulmate-firebase-service-account.json
 
+# 보안 관련 파일들 (IP 주소 등 민감 정보 포함)
+nginx.conf
+ssl/
+*.key
+*.crt
+*.pem
+
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,database,java,intellij

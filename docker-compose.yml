@@ -53,13 +53,34 @@ services:
       --save 300 10
       --save 60 10000
 
+  # -------------------- Nginx 리버스 프록시 --------------------
+  nginx:
+    image: nginx:alpine
+    container_name: hwanyulmate-nginx
+    restart: always
+    ports:
+      - "443:443"   # HTTPS - 모든 IP 허용
+      - "8080:8080" # HTTP - 특정 IP만 허용
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl # SSL 인증서 디렉토리 (필요시)
+    environment:
+      - DEVELOPER_IP_1=${DEVELOPER_IP_1}
+      - DEVELOPER_IP_2=${DEVELOPER_IP_2}
+      - MY_IP=${MY_IP}
+    networks:
+      - hwanyulmate-network
+    depends_on:
+      - hwanyulmate-app
+
   # -------------------- Spring Boot 앱 서비스 --------------------
   hwanyulmate-app:
     build: .
     container_name: hwanyulmate-app
     restart: always
-    ports:
-      - "${SERVER_PORT}:8084"
+    # 외부 포트 노출 제거 - nginx를 통해서만 접근
+    expose:
+      - "8084"
     networks:
       - hwanyulmate-network
     depends_on:
