@@ -64,6 +64,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/ssl # SSL 인증서 디렉토리 (필요시)
+      - /etc/letsencrypt:/etc/letsencrypt # Let's Encrypt 인증서
     environment:
       - DEVELOPER_IP_1=${DEVELOPER_IP_1}
       - DEVELOPER_IP_2=${DEVELOPER_IP_2}
