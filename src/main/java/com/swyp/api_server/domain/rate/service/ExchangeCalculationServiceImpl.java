@@ -127,9 +127,9 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
         ExchangeCalculationPolicy.CalculationResult result = calculationPolicy.calculate(
             marketRate, request.getAmount(), request.getDirection(), bankInfo);
         
-        // 최소/최대 금액 검증
-        validateExchangeAmountWithFee(request.getAmount(), result.getExchangedAmount(), 
-                                    result.getTotalFee(), bankInfo, request.getCurrencyCode());
+        // 최소/최대 금액 검증 제거 - 모든 금액 허용
+        // validateExchangeAmountWithFee(request.getAmount(), result.getExchangedAmount(), 
+        //                             result.getTotalFee(), bankInfo, request.getCurrencyCode());
         
         // 결과 DTO 생성
         String description = bankInfo.getDescription();
@@ -192,8 +192,9 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
-     * 환전 금액 범위 검증 (기존)
+     * 환전 금액 범위 검증 (기존) - 임시 비활성화
      */
+    /*
     private void validateExchangeAmount(BigDecimal amount, BankExchangeInfo bankInfo, String currencyCode) {
         if (amount.compareTo(bankInfo.getMinAmount()) < 0) {
             throw new CustomException(ErrorCode.INVALID_REQUEST, 
@@ -209,8 +210,9 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     }
     
     /**
-     * 수수료를 고려한 환전 금액 검증 (강화된 버전)
+     * 수수료를 고려한 환전 금액 검증 (강화된 버전) - 임시 비활성화
      */
+    /*
     private void validateExchangeAmountWithFee(BigDecimal inputAmount, BigDecimal exchangedAmount, 
                                              BigDecimal totalFee, BankExchangeInfo bankInfo, String currencyCode) {
         // 기본 범위 검증
@@ -231,7 +233,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
                 bankInfo.getBankName(), feeRatio);
         }
     }
-    
+    */
     
     /**
      * 통화 코드에 해당하는 국기 이미지 URL 조회
