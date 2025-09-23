@@ -170,11 +170,14 @@ public class ExchangeResultController {
             @Parameter(description = "환전할 금액", example = "1000", required = true)
             @RequestParam BigDecimal amount,
             
-            @Parameter(description = "환전 방향", example = "FOREIGN_TO_KRW")
-            @RequestParam(defaultValue = "FOREIGN_TO_KRW") ExchangeCalculationRequestDTO.ExchangeDirection direction,
+            @Parameter(description = "환전 방향", example = "KRW_TO_FOREIGN")
+            @RequestParam(defaultValue = "KRW_TO_FOREIGN") ExchangeCalculationRequestDTO.ExchangeDirection direction,
             
             @Parameter(description = "특정 은행 지정 (선택사항)", example = "KB국민은행")
             @RequestParam(required = false) String bank) {
+        
+        log.info("GET 환전 계산 요청: currencyCode={}, amount={}, direction={}", 
+                currencyCode, amount, direction);
         
         ExchangeCalculationRequestDTO request = ExchangeCalculationRequestDTO.builder()
                 .currencyCode(currencyCode.toUpperCase())
