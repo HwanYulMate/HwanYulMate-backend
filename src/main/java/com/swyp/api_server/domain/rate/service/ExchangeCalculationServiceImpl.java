@@ -129,7 +129,7 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
         
         // 최소/최대 금액 검증
         validateExchangeAmountWithFee(request.getAmount(), result.getExchangedAmount(), 
-                                    result.getTotalFee(), bankInfo);
+                                    result.getTotalFee(), bankInfo, request.getCurrencyCode());
         
         // 결과 DTO 생성
         String description = bankInfo.getDescription();
@@ -194,17 +194,17 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
     /**
      * 환전 금액 범위 검증 (기존)
      */
-    private void validateExchangeAmount(BigDecimal amount, BankExchangeInfo bankInfo) {
+    private void validateExchangeAmount(BigDecimal amount, BankExchangeInfo bankInfo, String currencyCode) {
         if (amount.compareTo(bankInfo.getMinAmount()) < 0) {
             throw new CustomException(ErrorCode.INVALID_REQUEST, 
                 String.format("%s 최소 환전 금액은 %s %s입니다.", 
-                    bankInfo.getBankName(), bankInfo.getMinAmount(), "USD"));
+                    bankInfo.getBankName(), bankInfo.getMinAmount(), currencyCode));
         }
         
         if (amount.compareTo(bankInfo.getMaxAmount()) > 0) {
             throw new CustomException(ErrorCode.INVALID_REQUEST,
                 String.format("%s 최대 환전 금액은 %s %s입니다.", 
-                    bankInfo.getBankName(), bankInfo.getMaxAmount(), "USD"));
+                    bankInfo.getBankName(), bankInfo.getMaxAmount(), currencyCode));
         }
     }
     
@@ -212,9 +212,9 @@ public class ExchangeCalculationServiceImpl implements ExchangeCalculationServic
      * 수수료를 고려한 환전 금액 검증 (강화된 버전)
      */
     private void validateExchangeAmountWithFee(BigDecimal inputAmount, BigDecimal exchangedAmount, 
-                                             BigDecimal totalFee, BankExchangeInfo bankInfo) {
+                                             BigDecimal totalFee, BankExchangeInfo bankInfo, String currencyCode) {
         // 기본 범위 검증
-        validateExchangeAmount(inputAmount, bankInfo);
+        validateExchangeAmount(inputAmount, bankInfo, currencyCode);
         
         // 수수료 대비 최소 환전 금액 검증
         BigDecimal minimumViableAmount = totalFee.multiply(BigDecimal.valueOf(2)); // 수수료의 2배
