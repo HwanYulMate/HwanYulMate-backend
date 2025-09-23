@@ -15,6 +15,7 @@ import com.swyp.api_server.domain.rate.service.ExchangeCalculationService;
 import com.swyp.api_server.domain.rate.service.ExchangeCalculationServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Slf4j
 public class ExchangeResultController {
     
     private final ExchangeCalculationService exchangeCalculationService;
@@ -121,6 +123,9 @@ public class ExchangeResultController {
     @PostMapping("/exchange/calculate")
     public ResponseEntity<List<ExchangeResultResponseDTO>> calculateExchangeRates(
             @Valid @RequestBody ExchangeCalculationRequestDTO request) {
+        
+        log.info("환전 계산 요청: currencyCode={}, amount={}, direction={}", 
+                request.getCurrencyCode(), request.getAmount(), request.getDirection());
         
         List<ExchangeResultResponseDTO> results = exchangeCalculationService.calculateExchangeRates(request);
         return ResponseEntity.ok(results);
