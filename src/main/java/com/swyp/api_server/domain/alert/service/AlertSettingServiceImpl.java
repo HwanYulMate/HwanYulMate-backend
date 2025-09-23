@@ -146,7 +146,7 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     }
     
     @Override
-    @Scheduled(cron = "0 */1 * * * *") // 매 분마다 실행 (정확한 시간 체크)
+    @Scheduled(cron = "0 */1 * * * *", zone = "Asia/Seoul") // 매 분마다 실행 (정확한 시간 체크)
     public void sendTodayExchangeRateAlerts() {
         // 분산 락으로 중복 실행 방지
         String instanceId = java.util.UUID.randomUUID().toString();
