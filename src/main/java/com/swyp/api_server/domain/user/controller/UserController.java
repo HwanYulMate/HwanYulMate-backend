@@ -20,6 +20,10 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import com.swyp.api_server.common.util.AuthUtil;
+import com.swyp.api_server.domain.notification.service.FCMService;
+import lombok.extern.log4j.Log4j2;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 사용자 관리 컨트롤러
@@ -29,9 +33,11 @@ import com.swyp.api_server.common.util.AuthUtil;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Log4j2
 public class UserController {
     private final UserService userService;
     private final AuthUtil authUtil;
+    private final FCMService fcmService;
 
     /**
      * 회원가입 API
@@ -426,5 +432,115 @@ public class UserController {
         
         userService.withdrawApple(email, reason, appleRefreshToken);
         return ResponseEntity.ok("Apple 회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
+    }
+
+    /**
+     * FCM 푸시 알림 테스트 API
+     * @param request FCM 테스트 요청
+     * @return 전송 결과
+     */
+    @Operation(summary = "FCM 테스트", description = "FCM 푸시 알림 전송을 테스트합니다. (테스트용)")
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200", 
+            description = "FCM 테스트 성공",
+            content = @Content(examples = @ExampleObject(value = "{\n  \"success\": true,\n  \"message\": \"푸시 알림이 성공적으로 전송되었습니다.\"\n}"))
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "잘못된 요청 (토큰 없음 등)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500", 
+            description = "서버 오류",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @PostMapping("/test/fcm/send")
+    public ResponseEntity<?> testFCMNotification(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "FCM 테스트 요청",
+                content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                        name = "FCM 테스트 예시",
+                        value = """
+                        {
+                          "token": "iOS에서_받은_FCM_토큰",
+                          "title": "테스트 제목",
+                          "body": "테스트 내용"
+                        }
+                        """
+                    )
+                )
+            )
+            @RequestBody Map<String, String> request) {
+        
+        log.info("=== FCM 테스트 푸시 알림 전송 ===");
+        
+        // 요청 검증
+        String token = request.get("token");
+        if (token == null || token.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                Map.of("success", false, "message", "FCM 토큰이 필요합니다.")
+            );
+        }
+        
+        String title = request.getOrDefault("title", "🧪 FCM 테스트 알림");
+        String body = request.getOrDefault("body", "NCP 서버에서 Firebase를 통해 전송된 테스트 푸시 알림입니다.");
+        
+        // 추가 데이터 설정
+        Map<String, String> data = new HashMap<>();
+        data.put("type", "TEST_NOTIFICATION");
+        data.put("testId", "test_" + System.currentTimeMillis());
+        data.put("source", "ncp_server");
+        data.put("timestamp", String.valueOf(System.currentTimeMillis()));
+        
+        log.info("📱 테스트 알림 전송:");
+        log.info("  - 제목: {}", title);
+        log.info("  - 내용: {}", body);
+        log.info("  - 토큰: {}...{}", 
+                token.substring(0, Math.min(20, token.length())),
+                token.length() > 40 ? token.substring(token.length() - 20) : "");
+        log.info("  - 추가 데이터: {}", data);
+        
+        try {
+            // FCM 전송 시도
+            log.info("🚀 FCM 전송 시작...");
+            boolean success = fcmService.sendNotification(token, title, body, data);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", success);
+            response.put("token", token.substring(0, Math.min(20, token.length())) + "...");
+            response.put("title", title);
+            response.put("body", body);
+            response.put("data", data);
+            response.put("timestamp", System.currentTimeMillis());
+            
+            if (success) {
+                log.info("✅ FCM 테스트 알림이 성공적으로 전송되었습니다!");
+                response.put("message", "푸시 알림이 성공적으로 전송되었습니다. iOS 기기에서 확인해보세요.");
+            } else {
+                log.error("❌ FCM 테스트 알림 전송에 실패했습니다.");
+                response.put("message", "푸시 알림 전송에 실패했습니다. 토큰과 설정을 확인해주세요.");
+            }
+            
+            // 통계 출력
+            fcmService.logStatistics();
+            response.put("statistics", fcmService.getStatistics());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("💥 FCM 전송 중 예외 발생: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(
+                Map.of(
+                    "success", false, 
+                    "message", "서버 오류로 인해 푸시 알림 전송에 실패했습니다: " + e.getMessage(),
+                    "error", e.getClass().getSimpleName()
+                )
+            );
+        }
     }
 }
