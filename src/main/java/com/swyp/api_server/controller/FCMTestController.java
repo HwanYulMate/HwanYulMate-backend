@@ -19,7 +19,7 @@ import java.util.Map;
 @RequestMapping("/api/test/fcm")
 @RequiredArgsConstructor
 @Log4j2
-@Profile({"fcm-test", "dev", "local"})
+@Profile({"fcm-test", "dev", "local", "default"})
 public class FCMTestController {
     
     private final FCMService fcmService;
