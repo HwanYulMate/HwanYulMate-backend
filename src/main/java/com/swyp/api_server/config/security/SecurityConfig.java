@@ -73,6 +73,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/exchange/news/**").permitAll()
                         // 피드백 유형 조회는 공개
                         .requestMatchers("/api/feedback/types").permitAll()
+                        // FCM 테스트 API (테스트/개발 환경에서만)
+                        .requestMatchers("/api/test/fcm/**").permitAll()
                         // 정적 리소스 (이미지 등) 접근 허용
                         .requestMatchers("/images/**").permitAll()
                         // Swagger UI 문서화 접근 허용
