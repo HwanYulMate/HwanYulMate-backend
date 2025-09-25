@@ -599,4 +599,23 @@ public class AlertSettingController {
         AlertDailyResponseDTO dailySetting = alertSettingService.getDailyAlertSetting(userId, currencyCode);
         return ResponseEntity.ok(dailySetting);
     }
+    
+    @Operation(
+            summary = "[테스트] 일일 환율 알림 즉시 발송",
+            description = "디버깅용: 특정 통화의 일일 환율 알림을 즉시 발송합니다. (중복 방지 무시)"
+    )
+    @PostMapping("/alert/test/daily/{currencyCode}")
+    public ResponseEntity<String> testSendDailyAlert(
+            @Parameter(description = "통화 코드", example = "USD", required = true)
+            @PathVariable String currencyCode,
+            HttpServletRequest request) {
+        Long userId = authUtil.extractUserId(request);
+        boolean success = alertSettingService.testSendDailyAlert(userId, currencyCode);
+        
+        if (success) {
+            return ResponseEntity.ok("일일 환율 알림 테스트 발송 성공");
+        } else {
+            return ResponseEntity.badRequest().body("일일 환율 알림 테스트 발송 실패");
+        }
+    }
 }

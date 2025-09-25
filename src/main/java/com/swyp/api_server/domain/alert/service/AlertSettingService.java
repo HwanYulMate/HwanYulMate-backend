@@ -70,4 +70,9 @@ public interface AlertSettingService {
      * 일일 환율 알림 설정 조회
      */
     AlertDailyResponseDTO getDailyAlertSetting(Long userId, String currencyCode);
+    
+    /**
+     * 테스트용: 일일 환율 알림 즉시 발송 (중복 방지 무시)
+     */
+    boolean testSendDailyAlert(Long userId, String currencyCode);
 }

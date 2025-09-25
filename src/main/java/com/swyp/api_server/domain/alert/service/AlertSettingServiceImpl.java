@@ -12,7 +12,9 @@ import com.swyp.api_server.domain.rate.ExchangeList;
 import com.swyp.api_server.domain.rate.service.ExchangeRateService;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.domain.notification.service.FCMService;
+import com.swyp.api_server.domain.notification.service.FCMDuplicatePreventionService;
 import com.swyp.api_server.domain.common.service.DistributedLockService;
+import com.swyp.api_server.domain.rate.ExchangeList.ExchangeType;
 import com.swyp.api_server.entity.AlertSetting;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
@@ -42,6 +44,7 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     private final UserRepository userRepository;
     private final ExchangeRateService exchangeRateService;
     private final FCMService fcmService;
+    private final FCMDuplicatePreventionService fcmDuplicatePreventionService;
     private final DistributedLockService distributedLockService;
     
     @Override
@@ -242,6 +245,16 @@ public class AlertSettingServiceImpl implements AlertSettingService {
     private boolean sendDailyExchangeRateAlert(AlertSetting alert, 
             com.swyp.api_server.domain.rate.dto.response.ExchangeRealtimeResponseDTO currentRate) {
         
+        // 중복 방지 체크
+        if (!fcmDuplicatePreventionService.canSendDailyRateAlert(
+                alert.getUser().getEmail(), 
+                alert.getCurrencyCode(), 
+                alert.getTodayExchangeRatePushTime().toString())) {
+            log.debug("일일 환율 알림 중복 방지: 사용자={}, 통화={}", 
+                    alert.getUser().getEmail(), alert.getCurrencyCode());
+            return true; // 이미 발송했으므로 성공으로 처리
+        }
+        
         String fcmToken = alert.getUser().getFcmToken();
         if (fcmToken != null && !fcmToken.trim().isEmpty()) {
             boolean success = fcmService.sendDailyRateAlert(
@@ -252,7 +265,8 @@ public class AlertSettingServiceImpl implements AlertSettingService {
             );
             
             if (success) {
-                log.debug("FCM 일일 환율 알림 전송 성공: 사용자={}", alert.getUser().getEmail());
+                log.info("FCM 일일 환율 알림 전송 성공: 사용자={}, 통화={}", 
+                        alert.getUser().getEmail(), alert.getCurrencyCode());
             } else {
                 log.error("FCM 일일 환율 알림 전송 실패: 사용자={}", alert.getUser().getEmail());
             }
@@ -584,6 +598,54 @@ public class AlertSettingServiceImpl implements AlertSettingService {
                     .isEnabled(false)
                     .alertTime(null)
                     .build();
+        }
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public boolean testSendDailyAlert(Long userId, String currencyCode) {
+        // 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "사용자 ID: " + userId));
+        
+        // FCM 토큰 확인
+        String fcmToken = user.getFcmToken();
+        if (fcmToken == null || fcmToken.trim().isEmpty()) {
+            log.warn("테스트 알림 발송 실패: FCM 토큰이 없습니다. 사용자={}", user.getEmail());
+            return false;
+        }
+        
+        // 통화 코드 유효성 검증
+        try {
+            ExchangeType.valueOf(currencyCode);
+        } catch (IllegalArgumentException e) {
+            log.warn("테스트 알림 발송 실패: 지원하지 않는 통화 코드={}",  currencyCode);
+            return false;
+        }
+        
+        try {
+            // 현재 환율 조회
+            var currentRate = exchangeRateService.getRealtimeExchangeRate(currencyCode);
+            
+            // FCM 알림 발송 (중복 방지 무시)
+            boolean success = fcmService.sendDailyRateAlert(
+                fcmToken,
+                currencyCode,
+                currentRate.getCurrentRate().doubleValue(),
+                currentRate.getPreviousRate().doubleValue()
+            );
+            
+            if (success) {
+                log.info("테스트 일일 환율 알림 발송 성공: 사용자={}, 통화={}", user.getEmail(), currencyCode);
+            } else {
+                log.error("테스트 일일 환율 알림 발송 실패: 사용자={}, 통화={}", user.getEmail(), currencyCode);
+            }
+            
+            return success;
+            
+        } catch (Exception e) {
+            log.error("테스트 일일 환율 알림 발송 중 오류: 사용자={}, 통화={}", user.getEmail(), currencyCode, e);
+            return false;
         }
     }
 }
