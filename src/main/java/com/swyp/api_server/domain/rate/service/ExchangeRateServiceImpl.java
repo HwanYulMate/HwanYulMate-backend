@@ -418,9 +418,11 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             log.info("DB 환율 데이터 조회 완료 (평일 기준): {} (요청: 평일 {} days, 조회: {} entries)", 
                     currencyCode, days, chartData.size());
             
-            // DB에도 데이터가 없는 경우 최근 평일 7일 데이터로 재시도
-            if (chartData.isEmpty() && days > 7) {
-                log.info("요청된 기간(평일 {} days)에 데이터가 없어 최근 평일 7일 데이터로 재시도: {}", days, currencyCode);
+            // 데이터가 부족한 경우 최근 평일 7일 데이터로 재시도 (요청 기간 대비 데이터가 30% 미만이거나 5개 미만)
+            int expectedMinData = Math.max(7, (int)(days * 0.5)); // 최소 7개 또는 요청 기간의 50%
+            if (chartData.size() < expectedMinData && days > 7) {
+                log.info("요청된 기간(평일 {} days)에 데이터 부족({}/{}개)으로 최근 평일 7일 데이터로 재시도: {}", 
+                        days, chartData.size(), expectedMinData, currencyCode);
                 List<LocalDate> recentBusinessDays = getRecentBusinessDays(7);
                 
                 if (!recentBusinessDays.isEmpty()) {
