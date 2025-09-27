@@ -53,15 +53,103 @@ public class ExchangeCalculationPolicy {
         // 2단계: 우대율 적용 최종 환율 계산  
         BigDecimal finalRate = calculatePreferentialRate(spreadAppliedRate, direction, bankInfo);
         
-        // 3단계: 환전 금액 계산
-        BigDecimal exchangedAmount = calculateExchangedAmount(inputAmount, finalRate, direction);
+        // 3단계: 환전 방향에 따른 수수료 및 최종 금액 계산
+        return calculateByDirection(inputAmount, finalRate, direction, bankInfo);
+    }
+    
+    /**
+     * 환전 방향에 따른 수수료 및 최종 금액 계산
+     */
+    private CalculationResult calculateByDirection(BigDecimal inputAmount, BigDecimal finalRate,
+                                                 ExchangeCalculationRequestDTO.ExchangeDirection direction,
+                                                 BankExchangeInfo bankInfo) {
         
-        // 4단계: 수수료 계산
+        if (direction == ExchangeCalculationRequestDTO.ExchangeDirection.KRW_TO_FOREIGN) {
+            // 원화 → 외화: 입력금액(원화)에서 수수료 차감 후 환전
+            return calculateKrwToForeign(inputAmount, finalRate, bankInfo);
+        } else {
+            // 외화 → 원화: 환전 후 수수료 차감
+            return calculateForeignToKrw(inputAmount, finalRate, bankInfo);
+        }
+    }
+    
+    /**
+     * 원화 → 외화 환전 계산
+     */
+    private CalculationResult calculateKrwToForeign(BigDecimal inputAmount, BigDecimal finalRate,
+                                                  BankExchangeInfo bankInfo) {
+        
+        // 1단계: 수수료 계산 (원화 기준으로 대략 계산)
+        BigDecimal estimatedExchangeAmount = inputAmount.divide(finalRate, 4, RoundingMode.HALF_UP);
+        ExchangeResultResponseDTO.FeeDetail feeDetail = calculateFeeDetail(estimatedExchangeAmount, bankInfo);
+        BigDecimal totalFee = feeDetail.getFixedFee().add(feeDetail.getRateBasedFee());
+        
+        // 2단계: 수수료를 차감한 후 실제 환전
+        BigDecimal amountAfterFee = inputAmount.subtract(totalFee);
+        
+        if (amountAfterFee.compareTo(BigDecimal.ZERO) <= 0) {
+            return CalculationResult.builder()
+                .appliedRate(finalRate)
+                .exchangedAmount(BigDecimal.ZERO)
+                .totalFee(totalFee)
+                .feeDetail(feeDetail)
+                .finalAmount(BigDecimal.ZERO)
+                .isViable(false)
+                .warningMessage("수수료가 입력금액을 초과")
+                .build();
+        }
+        
+        // 3단계: 수수료 차감 후 최종 환전금액 계산
+        BigDecimal finalAmount = amountAfterFee.divide(finalRate, 4, RoundingMode.HALF_UP);
+        
+        return CalculationResult.builder()
+            .appliedRate(finalRate)
+            .exchangedAmount(finalAmount)
+            .totalFee(totalFee)
+            .feeDetail(feeDetail)
+            .finalAmount(finalAmount)
+            .isViable(true)
+            .warningMessage(null)
+            .build();
+    }
+    
+    /**
+     * 외화 → 원화 환전 계산
+     */
+    private CalculationResult calculateForeignToKrw(BigDecimal inputAmount, BigDecimal finalRate,
+                                                  BankExchangeInfo bankInfo) {
+        
+        // 1단계: 환전 (외화 → 원화)
+        BigDecimal exchangedAmount = inputAmount.multiply(finalRate);
+        
+        // 2단계: 수수료 계산 (환전된 원화 기준)
         ExchangeResultResponseDTO.FeeDetail feeDetail = calculateFeeDetail(exchangedAmount, bankInfo);
         BigDecimal totalFee = feeDetail.getFixedFee().add(feeDetail.getRateBasedFee());
         
-        // 5단계: 최종 금액 및 유효성 검증
-        return calculateFinalResult(exchangedAmount, totalFee, finalRate, feeDetail, bankInfo);
+        // 3단계: 수수료 차감 후 최종 금액
+        BigDecimal finalAmount = exchangedAmount.subtract(totalFee);
+        
+        if (finalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return CalculationResult.builder()
+                .appliedRate(finalRate)
+                .exchangedAmount(exchangedAmount)
+                .totalFee(totalFee)
+                .feeDetail(feeDetail)
+                .finalAmount(BigDecimal.ZERO)
+                .isViable(false)
+                .warningMessage("수수료가 환전금액을 초과")
+                .build();
+        }
+        
+        return CalculationResult.builder()
+            .appliedRate(finalRate)
+            .exchangedAmount(exchangedAmount)
+            .totalFee(totalFee)
+            .feeDetail(feeDetail)
+            .finalAmount(finalAmount)
+            .isViable(true)
+            .warningMessage(null)
+            .build();
     }
     
     /**
@@ -107,20 +195,6 @@ public class ExchangeCalculationPolicy {
     }
     
     /**
-     * 환전 금액 계산
-     */
-    private BigDecimal calculateExchangedAmount(BigDecimal inputAmount, BigDecimal finalRate,
-                                              ExchangeCalculationRequestDTO.ExchangeDirection direction) {
-        if (direction == ExchangeCalculationRequestDTO.ExchangeDirection.FOREIGN_TO_KRW) {
-            // 외화 → 원화: 외화 × 환율 = 원화
-            return inputAmount.multiply(finalRate);
-        } else {
-            // 원화 → 외화: 원화 ÷ 환율 = 외화
-            return inputAmount.divide(finalRate, 4, RoundingMode.HALF_UP);
-        }
-    }
-    
-    /**
      * 수수료 상세 계산
      */
     private ExchangeResultResponseDTO.FeeDetail calculateFeeDetail(BigDecimal exchangedAmount, 
@@ -133,51 +207,6 @@ public class ExchangeCalculationPolicy {
             .fixedFee(fixedFee)
             .feeRate(bankInfo.getFeeRate())
             .rateBasedFee(rateBasedFee)
-            .build();
-    }
-    
-    /**
-     * 최종 결과 계산 및 유효성 검증
-     */
-    private CalculationResult calculateFinalResult(BigDecimal exchangedAmount, BigDecimal totalFee,
-                                                 BigDecimal appliedRate, 
-                                                 ExchangeResultResponseDTO.FeeDetail feeDetail,
-                                                 BankExchangeInfo bankInfo) {
-        
-        // 수수료가 환전금액을 초과하는 경우
-        if (totalFee.compareTo(exchangedAmount) >= 0) {
-            log.warn("수수료({})가 환전 금액({})을 초과합니다. 은행: {}", 
-                totalFee, exchangedAmount, bankInfo.getBankName());
-            
-            return CalculationResult.builder()
-                .appliedRate(appliedRate)
-                .exchangedAmount(exchangedAmount)
-                .totalFee(totalFee)
-                .feeDetail(feeDetail)
-                .finalAmount(BigDecimal.ZERO)
-                .isViable(false)
-                .warningMessage("수수료가 환전금액을 초과")
-                .build();
-        }
-        
-        // 정상적인 환전 가능 케이스
-        BigDecimal finalAmount = exchangedAmount.subtract(totalFee);
-        
-        // 음수 방지 (추가 안전장치)
-        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
-            log.warn("계산된 최종 금액이 음수입니다. 0으로 조정. 은행: {}, 계산값: {}", 
-                bankInfo.getBankName(), finalAmount);
-            finalAmount = BigDecimal.ZERO;
-        }
-        
-        return CalculationResult.builder()
-            .appliedRate(appliedRate)
-            .exchangedAmount(exchangedAmount)
-            .totalFee(totalFee)
-            .feeDetail(feeDetail)
-            .finalAmount(finalAmount)
-            .isViable(true)
-            .warningMessage(null)
             .build();
     }
 }
