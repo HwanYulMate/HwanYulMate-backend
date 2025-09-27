@@ -66,10 +66,13 @@ public class ExchangeRateHistoryService {
     @Transactional(readOnly = true)
     public List<ExchangeRateWithChangeDto> getRatesWithChange() {
         List<ExchangeRate> currentRates = exchangeRateRepository.findAllLatestRates();
-        LocalDate today = LocalDate.now();
+        
+        // 현재 환율 데이터의 실제 날짜를 기준으로 전일 데이터 조회
+        LocalDate currentDataDate = currentRates.isEmpty() ? LocalDate.now() : 
+            LocalDate.parse(currentRates.get(0).getBaseDate(), java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
         
         // 전일 환율 데이터 조회
-        Map<String, ExchangeRateHistory> previousRatesMap = getPreviousRatesMap(today);
+        Map<String, ExchangeRateHistory> previousRatesMap = getPreviousRatesMap(currentDataDate);
         
         // 현재 환율 데이터를 Map으로 변환
         Map<String, ExchangeRate> currentRatesMap = currentRates.stream()
@@ -116,9 +119,12 @@ public class ExchangeRateHistoryService {
         }
 
         ExchangeRate current = currentOpt.get();
-        LocalDate today = LocalDate.now();
         
-        Optional<ExchangeRateHistory> previousOpt = historyRepository.findPreviousDayRate(currencyCode, today);
+        // 현재 환율 데이터의 실제 날짜를 기준으로 전일 데이터 조회
+        LocalDate currentDataDate = LocalDate.parse(current.getBaseDate(), 
+            java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        
+        Optional<ExchangeRateHistory> previousOpt = historyRepository.findPreviousDayRate(currencyCode, currentDataDate);
         
         return ExchangeRateWithChangeDto.of(current, previousOpt.orElse(null));
     }
