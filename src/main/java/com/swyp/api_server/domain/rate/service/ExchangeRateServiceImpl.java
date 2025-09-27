@@ -458,19 +458,22 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     }
     
     /**
-     * 최근 N개 평일 날짜 리스트 생성 (최신 순)
+     * 최근 N일 기간 내 평일 날짜 리스트 생성 (달력 기준, 최신 순)
      */
-    private List<LocalDate> getRecentBusinessDays(int count) {
+    private List<LocalDate> getRecentBusinessDays(int calendarDays) {
         List<LocalDate> businessDays = new ArrayList<>();
-        LocalDate currentDate = LocalDate.now().minusDays(1); // 어제부터 시작
+        LocalDate startDate = LocalDate.now().minusDays(calendarDays); // 달력 기준 시작일
+        LocalDate endDate = LocalDate.now().minusDays(1); // 어제까지
         
-        while (businessDays.size() < count && currentDate.isAfter(LocalDate.now().minusYears(2))) {
+        LocalDate currentDate = endDate;
+        while (!currentDate.isBefore(startDate)) {
             if (isBusinessDay(currentDate)) {
                 businessDays.add(currentDate);
             }
             currentDate = currentDate.minusDays(1);
         }
         
+        log.info("평일 데이터 조회: 달력 {}일 기간에서 평일 {}개 찾음", calendarDays, businessDays.size());
         return businessDays; // 최신 날짜가 첫 번째
     }
     
