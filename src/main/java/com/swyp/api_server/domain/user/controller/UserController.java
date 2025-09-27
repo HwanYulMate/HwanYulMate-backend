@@ -4,6 +4,7 @@ import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
 import com.swyp.api_server.domain.user.dto.UserInfoResponseDto;
+import com.swyp.api_server.domain.user.dto.WithdrawalResponseDto;
 import com.swyp.api_server.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -166,18 +167,47 @@ public class UserController {
      * @return 탈퇴 처리 결과 메시지
      */
     @Operation(summary = "회원 탈퇴", 
-        description = "회원 탈퇴를 처리합니다. Apple 사용자의 경우 자동으로 Apple 연동도 해제됩니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
+        description = "회원 탈퇴를 처리합니다. Apple 사용자의 경우 자동으로 Apple 연동도 해제됩니다. 즉시 삭제되지 않고 30일간 데이터가 보관된 후 완전 삭제됩니다. 이미 탈퇴 처리된 사용자의 경우 30일 정보 유지 안내와 함께 로그아웃을 권장합니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
             responseCode = "200", 
-            description = "탈퇴 처리 성공",
-            content = @Content(examples = @ExampleObject(value = "회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다."))
-        ),
-        @ApiResponse(
-            responseCode = "400", 
-            description = "탈퇴 처리 실패 (이미 탈퇴 처리된 사용자 등)",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            description = "탈퇴 처리 성공 또는 탈퇴 안내",
+            content = @Content(
+                schema = @Schema(implementation = WithdrawalResponseDto.class),
+                examples = {
+                    @ExampleObject(
+                        name = "첫 번째 탈퇴 처리",
+                        summary = "최초 탈퇴 요청 시 응답",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "회원 탈퇴가 처리되었습니다.",
+                          "withdrawalDate": "2024-01-15T14:30:00",
+                          "finalDeletionDate": "2024-02-14T14:30:00",
+                          "canRecover": true,
+                          "shouldLogout": true,
+                          "notice": "30일 내 재가입하면 정보 이용이 유지됩니다. 로그아웃을 권장합니다."
+                        }
+                        """
+                    ),
+                    @ExampleObject(
+                        name = "재탈퇴 요청 시 안내",
+                        summary = "이미 탈퇴 처리된 사용자의 재요청",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "탈퇴 처리 안내",
+                          "withdrawalDate": "2024-01-15T14:30:00",
+                          "finalDeletionDate": "2024-02-14T14:30:00",
+                          "canRecover": true,
+                          "shouldLogout": true,
+                          "notice": "이미 탈퇴 처리 중인 계정입니다. 30일 내 재가입하면 정보가 유지됩니다. 로그아웃을 권장합니다."
+                        }
+                        """
+                    )
+                }
+            )
         ),
         @ApiResponse(
             responseCode = "401", 
@@ -191,11 +221,11 @@ public class UserController {
         )
     })
     @DeleteMapping("/auth/withdraw")
-    public ResponseEntity<?> withdraw(@RequestBody(required = false) java.util.Map<String, String> withdrawRequest, HttpServletRequest request) {
+    public ResponseEntity<WithdrawalResponseDto> withdraw(@RequestBody(required = false) java.util.Map<String, String> withdrawRequest, HttpServletRequest request) {
         String email = authUtil.extractUserEmail(request);
         String reason = withdrawRequest != null ? withdrawRequest.get("reason") : null;
-        userService.withdraw(email, reason);
-        return ResponseEntity.ok("회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
+        WithdrawalResponseDto response = userService.withdraw(email, reason);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -385,17 +415,51 @@ public class UserController {
      * @return 탈퇴 처리 결과 메시지
      */
     @Operation(summary = "Apple 회원 탈퇴", 
-        description = "Apple 사용자의 회원 탈퇴를 처리합니다. Apple 토큰을 무효화하고 연동을 해제한 후 30일간 데이터를 보관합니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
+        description = "Apple 사용자의 회원 탈퇴를 처리합니다. Apple 토큰을 무효화하고 연동을 해제한 후 30일간 데이터를 보관합니다. 이미 탈퇴 처리된 사용자의 경우 30일 정보 유지 안내와 함께 로그아웃을 권장합니다. (외부 API 호출은 비동기로 처리되어 응답이 빠릅니다.)",
         security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponses({
         @ApiResponse(
             responseCode = "200", 
-            description = "Apple 탈퇴 처리 성공",
-            content = @Content(examples = @ExampleObject(value = "Apple 회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다."))
+            description = "Apple 탈퇴 처리 성공 또는 탈퇴 안내",
+            content = @Content(
+                schema = @Schema(implementation = WithdrawalResponseDto.class),
+                examples = {
+                    @ExampleObject(
+                        name = "첫 번째 Apple 탈퇴 처리",
+                        summary = "최초 Apple 탈퇴 요청 시 응답",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "회원 탈퇴가 처리되었습니다.",
+                          "withdrawalDate": "2024-01-15T14:30:00",
+                          "finalDeletionDate": "2024-02-14T14:30:00",
+                          "canRecover": true,
+                          "shouldLogout": true,
+                          "notice": "30일 내 재가입하면 정보 이용이 유지됩니다. 로그아웃을 권장합니다."
+                        }
+                        """
+                    ),
+                    @ExampleObject(
+                        name = "재Apple탈퇴 요청 시 안내",
+                        summary = "이미 탈퇴 처리된 Apple 사용자의 재요청",
+                        value = """
+                        {
+                          "success": true,
+                          "message": "Apple 탈퇴 처리 안내",
+                          "withdrawalDate": "2024-01-15T14:30:00",
+                          "finalDeletionDate": "2024-02-14T14:30:00",
+                          "canRecover": true,
+                          "shouldLogout": true,
+                          "notice": "이미 Apple 탈퇴 처리 중인 계정입니다. 30일 내 재가입하면 정보가 유지됩니다. 로그아웃을 권장합니다."
+                        }
+                        """
+                    )
+                }
+            )
         ),
         @ApiResponse(
             responseCode = "400", 
-            description = "탈퇴 처리 실패 (이미 탈퇴 처리된 사용자, Apple 사용자가 아님 등)",
+            description = "탈퇴 처리 실패 (Apple 사용자가 아님 등)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         ),
         @ApiResponse(
@@ -410,7 +474,7 @@ public class UserController {
         )
     })
     @DeleteMapping("/auth/apple/withdraw")
-    public ResponseEntity<?> withdrawApple(
+    public ResponseEntity<WithdrawalResponseDto> withdrawApple(
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Apple 탈퇴 요청",
             content = @Content(
@@ -430,8 +494,8 @@ public class UserController {
         String reason = appleWithdrawRequest.get("reason");
         String appleRefreshToken = appleWithdrawRequest.get("appleRefreshToken");
         
-        userService.withdrawApple(email, reason, appleRefreshToken);
-        return ResponseEntity.ok("Apple 회원 탈퇴가 처리되었습니다. 30일 후 완전 삭제됩니다.");
+        WithdrawalResponseDto response = userService.withdrawApple(email, reason, appleRefreshToken);
+        return ResponseEntity.ok(response);
     }
 
     /**

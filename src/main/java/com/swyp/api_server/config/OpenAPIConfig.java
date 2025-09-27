@@ -30,11 +30,12 @@ public class OpenAPIConfig {
                                 "## 🚀 주요 기능\n" +
                                 "- 💱 **실시간 환율 조회**: 12개국 주요 통화 환율 정보 (한국수출입은행 공식 데이터)\n" +
                                 "- 📊 **환율 차트 분석**: 평일 기준 7일~1년 기간별 환율 변동 차트 (자동 히스토리 수집)\n" +
-                                "- 🏛️ **환전 예상 금액 비교**: 7개 은행별 환전 우대율 및 수수료 비교\n" +
+                                "- 🏛️ **환전 예상 금액 비교**: 8개 은행별 환전 우대율 및 수수료 비교 (수정된 계산 로직)\n" +
                                 "- 🔔 **환율 알림 설정**: 목표 환율 달성 및 일일 환율 알림 (스케줄러 기반)\n" +
                                 "- 📰 **환율 뉴스**: 실시간 환율 관련 뉴스 검색 및 조회 (무한스크롤)\n" +
                                 "- 🔐 **JWT 인증**: Access/Refresh Token 기반 보안 인증 (24h/30일)\n" +
-                                "- 🍎 **Apple 로그인**: Apple OAuth 인증 및 완전한 로그아웃/탈퇴 지원\n\n" +
+                                "- 🍎 **Apple 로그인**: Apple OAuth 인증 및 완전한 로그아웃/탈퇴 지원\n" +
+                                "- 👋 **사용자 친화적 탈퇴**: 30일 정보 보관 안내 및 로그아웃 권장 UX\n\n" +
                                 "## 📊 데이터 소스 및 수집 방식\n" +
                                 "- **환율 정보**: 한국수출입은행 공식 API (스케줄러 기반 자동 수집)\n" +
                                 "- **히스토리 데이터**: 단계별 자동 확장 (30일→90일→180일→365일)\n" +
@@ -46,7 +47,9 @@ public class OpenAPIConfig {
                                 "- **Database**: MySQL 8.0 + JPA/Hibernate\n" +
                                 "- **Cache**: Redis 7.0\n" +
                                 "- **Container**: Docker + Docker Compose\n" +
-                                "- **Security**: Spring Security + JWT\n\n" +
+                                "- **Security**: Spring Security + JWT\n" +
+                                "- **Architecture**: Policy Pattern + Service Layer\n" +
+                                "- **Documentation**: OpenAPI 3.0 (Swagger)\n\n" +
                                 "## 👨‍💻 개발팀\n" +
                                 "- **Backend 개발**: 전우선 (단독 개발)")
                         .version("1.0.0")

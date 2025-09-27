@@ -44,7 +44,9 @@ public class ExchangeResultController {
         description = "DB에 저장된 최신 환율 정보를 기반으로 여러 은행의 환전 예상 금액을 비교합니다. " +
                       "환율 데이터는 스케줄러에 의해 수집되고 개별 통화 캐시를 통해 빠른 응답속도를 제공하며, 우대율과 수수료가 모두 반영됩니다. " +
                       "Policy 패턴을 적용하여 복잡한 계산 로직을 명확히 분리했으며, " +
-                      "**중요**: 수수료가 환전금액을 초과하는 경우 최종 금액은 0원으로 표시되며, 음수 결과는 발생하지 않습니다."
+                      "**수정된 계산 로직**: 환전 방향에 따라 올바른 수수료 계산을 적용합니다. " +
+                      "원화→외화: 입력금액에서 수수료 차감 후 환전, 외화→원화: 환전 후 수수료 차감. " +
+                      "이제 모든 은행의 최종 수령액이 정확히 계산됩니다."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -53,39 +55,39 @@ public class ExchangeResultController {
             content = @Content(
                 schema = @Schema(implementation = ExchangeResultResponseDTO.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
-                    name = "환전 계산 결과 (업데이트된 실제 우대율)",
+                    name = "환전 계산 결과 (수정된 계산 로직)",
                     value = "[\n" +
                             "  {\n" +
                             "    \"bankName\": \"우리은행\",\n" +
                             "    \"bankCode\": \"020\",\n" +
-                            "    \"baseRate\": 1385.20,\n" +
-                            "    \"appliedRate\": 1396.50,\n" +
-                            "    \"preferentialRate\": 90.0,\n" +
+                            "    \"baseRate\": 1393.60,\n" +
+                            "    \"appliedRate\": 1396.28,\n" +
+                            "    \"preferentialRate\": 80.0,\n" +
                             "    \"spreadRate\": 1.0,\n" +
                             "    \"totalFee\": 0.0,\n" +
-                            "    \"finalAmount\": 139650.0,\n" +
-                            "    \"inputAmount\": 100.0,\n" +
+                            "    \"finalAmount\": 71.6191,\n" +
+                            "    \"inputAmount\": 100000,\n" +
                             "    \"currencyCode\": \"USD\",\n" +
                             "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
                             "    \"isOnlineAvailable\": true,\n" +
-                            "    \"description\": \"WiBee뱅킹 최대 90% 우대율, 수수료 무료\",\n" +
-                            "    \"baseDate\": \"20250920\"\n" +
+                            "    \"description\": \"위비뱅킹 80% 우대율, 수수료 무료\",\n" +
+                            "    \"baseDate\": \"20250922\"\n" +
                             "  },\n" +
                             "  {\n" +
-                            "    \"bankName\": \"SC제일은행\",\n" +
-                            "    \"bankCode\": \"023\",\n" +
-                            "    \"baseRate\": 1385.20,\n" +
-                            "    \"appliedRate\": 1365.80,\n" +
-                            "    \"preferentialRate\": 40.0,\n" +
-                            "    \"spreadRate\": 1.4,\n" +
-                            "    \"totalFee\": 2500.0,\n" +
-                            "    \"finalAmount\": 0.0,\n" +
-                            "    \"inputAmount\": 1.0,\n" +
+                            "    \"bankName\": \"IM뱅크\",\n" +
+                            "    \"bankCode\": \"031\",\n" +
+                            "    \"baseRate\": 1393.60,\n" +
+                            "    \"appliedRate\": 1395.39,\n" +
+                            "    \"preferentialRate\": 85.0,\n" +
+                            "    \"spreadRate\": 0.90,\n" +
+                            "    \"totalFee\": 500.21,\n" +
+                            "    \"finalAmount\": 71.3065,\n" +
+                            "    \"inputAmount\": 100000,\n" +
                             "    \"currencyCode\": \"USD\",\n" +
                             "    \"flagImageUrl\": \"/images/flags/us.png\",\n" +
-                            "    \"isOnlineAvailable\": null,\n" +
-                            "    \"description\": \"SC인터넷뱅킹 최대 40% 우대율 (수수료가 환전금액을 초과)\",\n" +
-                            "    \"baseDate\": \"20250920\"\n" +
+                            "    \"isOnlineAvailable\": true,\n" +
+                            "    \"description\": \"디지털뱅크 최고 우대율 85%\",\n" +
+                            "    \"baseDate\": \"20250922\"\n" +
                             "  }\n" +
                             "]"
                 )
@@ -93,17 +95,17 @@ public class ExchangeResultController {
         ),
         @ApiResponse(
             responseCode = "400", 
-            description = "잘못된 요청 (유효하지 않은 통화 코드, 금액, 또는 수수료가 환전금액 초과)",
+            description = "잘못된 요청 (유효하지 않은 통화 코드, 금액 등)",
             content = @Content(
                 schema = @Schema(implementation = ErrorResponse.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
-                    name = "수수료 초과 오류",
+                    name = "잘못된 요청 오류",
                     value = "{\n" +
                             "  \"success\": false,\n" +
-                            "  \"code\": \"RATE_009\",\n" +
-                            "  \"message\": \"수수료가 환전 금액을 초과합니다. 더 큰 금액으로 환전을 시도해주세요.\",\n" +
-                            "  \"detail\": \"1달러 환전시 수수료 2,500원 발생\",\n" +
-                            "  \"timestamp\": \"2025-09-20T10:30:00\",\n" +
+                            "  \"code\": \"RATE_002\",\n" +
+                            "  \"message\": \"환전 금액은 0보다 커야 합니다.\",\n" +
+                            "  \"detail\": \"입력된 금액: -1000\",\n" +
+                            "  \"timestamp\": \"2025-09-27T19:30:00\",\n" +
                             "  \"path\": \"/api/exchange/calculate\"\n" +
                             "}"
                 )
@@ -137,8 +139,8 @@ public class ExchangeResultController {
     @Operation(
         summary = "간편 환전 계산 (DB 기반)",
         description = "GET 방식으로 간단하게 환전 예상 금액을 DB 기반으로 계산합니다. " +
-                      "스케줄러가 수집한 최신 환율 정보와 개별 통화 캐시를 사용하여 빠른 응답을 제공합니다. 기본값: 외화→원화 방향. " +
-                      "**주의**: 소액 환전시 수수료가 환전금액을 초과할 수 있으며, 이 경우 최종 금액은 0원으로 표시됩니다."
+                      "스케줄러가 수집한 최신 환율 정보와 개별 통화 캐시를 사용하여 빠른 응답을 제공합니다. 기본값: 원화→외화 방향. " +
+                      "**수정된 계산 로직**: 환전 방향에 따른 정확한 수수료 계산으로 모든 은행의 최종 수령액이 올바르게 표시됩니다."
     )
     @ApiResponses(value = {
         @ApiResponse(

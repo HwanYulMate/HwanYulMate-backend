@@ -6,6 +6,7 @@ import com.swyp.api_server.domain.user.dto.LoginRequestDto;
 import com.swyp.api_server.domain.user.dto.SignRequestDto;
 import com.swyp.api_server.domain.user.dto.TokenResponseDto;
 import com.swyp.api_server.domain.user.dto.UserInfoResponseDto;
+import com.swyp.api_server.domain.user.dto.WithdrawalResponseDto;
 import com.swyp.api_server.domain.user.repository.UserRepository;
 import com.swyp.api_server.entity.User;
 import com.swyp.api_server.exception.CustomException;
@@ -122,13 +123,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void withdraw(String email, String reason) {
+    public WithdrawalResponseDto withdraw(String email, String reason) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
 
-        // 이미 탈퇴한 사용자인지 확인
+        // 이미 탈퇴 처리된 사용자라면 30일 정보 유지 안내 응답
         if (user.getIsDeleted()) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
+            log.info("이미 탈퇴 처리된 사용자의 재탈퇴 요청: {}", email);
+            return WithdrawalResponseDto.builder()
+                .success(true)
+                .message("탈퇴 처리 안내")
+                .withdrawalDate(user.getDeletedAt())
+                .finalDeletionDate(user.getFinalDeletionDate()) 
+                .canRecover(true)
+                .shouldLogout(true)
+                .notice("이미 탈퇴 처리 중인 계정입니다. 30일 내 재가입하면 정보가 유지됩니다. 로그아웃을 권장합니다.")
+                .build();
         }
 
         // 1. 먼저 DB 트랜잭션 처리 (30일 보관 탈퇴)
@@ -152,6 +162,8 @@ public class UserServiceImpl implements UserService {
         }
         
         log.info("회원 탈퇴 처리 완료: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
+        
+        return WithdrawalResponseDto.success(user.getDeletedAt(), user.getFinalDeletionDate());
     }
 
     @Override
@@ -177,13 +189,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void withdrawApple(String email, String reason, String appleRefreshToken) {
+    public WithdrawalResponseDto withdrawApple(String email, String reason, String appleRefreshToken) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "이메일: " + email));
 
-        // 이미 탈퇴한 사용자인지 확인
+        // 이미 탈퇴 처리된 Apple 사용자라면 30일 정보 유지 안내 응답
         if (user.getIsDeleted()) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 탈퇴 처리된 사용자입니다.");
+            log.info("이미 탈퇴 처리된 Apple 사용자의 재탈퇴 요청: {}", email);
+            return WithdrawalResponseDto.builder()
+                .success(true)
+                .message("Apple 탈퇴 처리 안내")
+                .withdrawalDate(user.getDeletedAt())
+                .finalDeletionDate(user.getFinalDeletionDate()) 
+                .canRecover(true)
+                .shouldLogout(true)
+                .notice("이미 Apple 탈퇴 처리 중인 계정입니다. 30일 내 재가입하면 정보가 유지됩니다. 로그아웃을 권장합니다.")
+                .build();
         }
 
         // 1. 먼저 DB 트랜잭션 처리 (30일 보관 탈퇴)
@@ -207,6 +228,8 @@ public class UserServiceImpl implements UserService {
         }
         
         log.info("Apple 사용자 탈퇴 처리: {}, 최종 삭제 예정일: {}", email, user.getFinalDeletionDate());
+        
+        return WithdrawalResponseDto.success(user.getDeletedAt(), user.getFinalDeletionDate());
     }
 
     @Override
